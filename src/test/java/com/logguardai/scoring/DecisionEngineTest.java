@@ -1,6 +1,9 @@
 package com.logguardai.scoring;
 
 import org.junit.Test;
+
+import com.logguardai.scoring.DecisionEngine;
+
 import static org.junit.Assert.*;
 
 public class DecisionEngineTest {

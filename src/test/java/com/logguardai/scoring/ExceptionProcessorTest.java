@@ -1,6 +1,9 @@
-package com.logguardai.exception;
+package com.logguardai.scoring;
 
 import org.junit.Test;
+
+import com.logguardai.exception.ExceptionProcessor;
+
 import static org.junit.Assert.*;
 
 public class ExceptionProcessorTest {

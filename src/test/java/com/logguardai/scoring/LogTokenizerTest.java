@@ -1,6 +1,8 @@
-package com.logguardai.tokenizer;
+package com.logguardai.scoring;
 
 import com.logguardai.model.Token;
+import com.logguardai.tokenizer.LogTokenizer;
+
 import org.junit.Test;
 import static org.junit.Assert.*;
 

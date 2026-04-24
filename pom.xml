@@ -6,11 +6,39 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.logguardai</groupId>
-    <artifactId>logguardai-core</artifactId>
+    <artifactId>logguardai</artifactId>
     <version>0.1.0</version>
-    <name>LogGuardAI Core</name>
-    <description>Log4j2 extension for context-aware sensitive data sanitization</description>
-    <url>https://github.com/yourusername/logguardai</url>
+    <name>LogGuardAI</name>
+    <description>Context-aware Log4j2 extension for sensitive data sanitization. Detects and masks sensitive information using intelligent heuristics without breaking logging.</description>
+    <url>https://github.com/sanitizeai/logguardai</url>
+
+    <licenses>
+        <license>
+            <name>MIT License</name>
+            <url>https://opensource.org/licenses/MIT</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <scm>
+        <url>https://github.com/sanitizeai/logguardai</url>
+        <connection>scm:git:https://github.com/sanitizeai/logguardai.git</connection>
+        <developerConnection>scm:git:git@github.com:sanitizeai/logguardai.git</developerConnection>
+        <tag>v0.1.0</tag>
+    </scm>
+
+    <developers>
+        <developer>
+            <name>LogGuardAI Team</name>
+            <email>dev@sanitizeai.com</email>
+            <url>https://github.com/sanitizeai</url>
+        </developer>
+    </developers>
+
+    <issueManagement>
+        <system>GitHub</system>
+        <url>https://github.com/sanitizeai/logguardai/issues</url>
+    </issueManagement>
 
     <properties>
         <maven.compiler.source>8</maven.compiler.source>

@@ -1,6 +1,9 @@
-package com.logguardai.sanitizer;
+package com.logguardai.scoring;
 
 import org.junit.Test;
+
+import com.logguardai.sanitizer.SanitizationEngine;
+
 import static org.junit.Assert.*;
 
 public class SanitizationEngineTest {

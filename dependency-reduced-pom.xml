@@ -2,11 +2,35 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.logguardai</groupId>
-  <artifactId>logguardai-core</artifactId>
-  <name>LogGuardAI Core</name>
+  <artifactId>logguardai</artifactId>
+  <name>LogGuardAI</name>
   <version>0.1.0</version>
-  <description>Log4j2 extension for context-aware sensitive data sanitization</description>
-  <url>https://github.com/yourusername/logguardai</url>
+  <description>Context-aware Log4j2 extension for sensitive data sanitization. Detects and masks sensitive information using intelligent heuristics without breaking logging.</description>
+  <url>https://github.com/sanitizeai/logguardai</url>
+  <issueManagement>
+    <system>GitHub</system>
+    <url>https://github.com/sanitizeai/logguardai/issues</url>
+  </issueManagement>
+  <developers>
+    <developer>
+      <name>LogGuardAI Team</name>
+      <email>dev@sanitizeai.com</email>
+      <url>https://github.com/sanitizeai</url>
+    </developer>
+  </developers>
+  <licenses>
+    <license>
+      <name>MIT License</name>
+      <url>https://opensource.org/licenses/MIT</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
+  <scm>
+    <connection>scm:git:https://github.com/sanitizeai/logguardai.git</connection>
+    <developerConnection>scm:git:git@github.com:sanitizeai/logguardai.git</developerConnection>
+    <tag>v0.1.0</tag>
+    <url>https://github.com/sanitizeai/logguardai</url>
+  </scm>
   <build>
     <plugins>
       <plugin>
@@ -50,9 +74,9 @@
     </dependency>
   </dependencies>
   <properties>
-    <maven.compiler.target>8</maven.compiler.target>
-    <maven.compiler.source>8</maven.compiler.source>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <log4j.version>2.20.0</log4j.version>
+    <maven.compiler.target>8</maven.compiler.target>
+    <maven.compiler.source>8</maven.compiler.source>
   </properties>
 </project>
