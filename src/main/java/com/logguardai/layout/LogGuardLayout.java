@@ -1,5 +1,9 @@
 package com.logguardai.layout;
 
+import com.logguardai.ai.AIConfig;
+import com.logguardai.ai.AIService;
+import com.logguardai.client.AIServiceFactory;
+import com.logguardai.client.CachedAIService;
 import com.logguardai.exception.ExceptionProcessor;
 import com.logguardai.model.Token;
 import com.logguardai.sanitizer.SanitizationEngine;
@@ -15,6 +19,7 @@ import org.apache.logging.log4j.core.layout.AbstractStringLayout;
 import java.nio.charset.Charset;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * LogGuardLayout - Main Log4j2 plugin for sanitizing logs.
@@ -23,11 +28,17 @@ import java.util.*;
  * 1. Tokenize message
  * 2. Score tokens for risk
  * 3. Decide sanitization action
- * 4. Apply rule-based masking
- * 5. Append exception insights
+ * 4. Apply rule-based masking OR AI sanitization (v0.2+)
+ * 5. Append exception insights (with optional AI enhancement)
  * 
- * Configuration example:
- * <LogGuardLayout aiEnabled="false" riskThreshold="5" timeoutMs="150"/>
+ * Configuration example (v0.2):
+ * <LogGuardLayout
+ *     aiEnabled="true"
+ *     aiProvider="openai"
+ *     aiApiKey="${OPENAI_API_KEY}"
+ *     aiThreshold="5"
+ *     timeoutMs="2000"
+ *     samplingRate="0.1"/>
  */
 @Plugin(name = "LogGuardLayout", category = "Layout", elementType = "Layout", printObject = true)
 public class LogGuardLayout extends AbstractStringLayout {
@@ -39,17 +50,18 @@ public class LogGuardLayout extends AbstractStringLayout {
     private final ExceptionProcessor exceptionProcessor;
     
     private final boolean aiEnabled;
+    private final AIService aiService;
     private final int aiThreshold;
-    private final long timeoutMs;
+    private final long aiTimeoutMs;
     private final double samplingRate;
     private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
 
-    public LogGuardLayout(Charset charset, boolean aiEnabled, int aiThreshold, 
-                        long timeoutMs, double samplingRate) {
+    public LogGuardLayout(Charset charset, boolean aiEnabled, String aiProvider, String aiApiKey,
+                        String aiModel, int aiThreshold, long aiTimeoutMs, double samplingRate) {
         super(charset);
         this.aiEnabled = aiEnabled;
         this.aiThreshold = aiThreshold;
-        this.timeoutMs = timeoutMs;
+        this.aiTimeoutMs = aiTimeoutMs;
         this.samplingRate = samplingRate;
         
         // Initialize components
@@ -58,6 +70,18 @@ public class LogGuardLayout extends AbstractStringLayout {
         this.decisionEngine = new DecisionEngine();
         this.sanitizationEngine = new SanitizationEngine();
         this.exceptionProcessor = new ExceptionProcessor();
+        
+        // Initialize AI service if enabled
+        if (aiEnabled && aiApiKey != null && !aiApiKey.isEmpty()) {
+            AIConfig aiConfig = new AIConfig();
+            aiConfig.setApiProvider(aiProvider != null ? aiProvider : "openai");
+            aiConfig.setApiKey(aiApiKey);
+            aiConfig.setModel(aiModel != null ? aiModel : "gpt-3.5-turbo");
+            aiConfig.setTimeoutMs(aiTimeoutMs);
+            this.aiService = AIServiceFactory.createService(aiConfig);
+        } else {
+            this.aiService = AIServiceFactory.createService(null);  // No-op service
+        }
     }
 
     /**
@@ -87,7 +111,7 @@ public class LogGuardLayout extends AbstractStringLayout {
     }
 
     /**
-     * Main sanitization pipeline.
+     * Main sanitization pipeline with AI integration.
      */
     private String sanitizeMessage(String message) {
         if (message == null || message.isEmpty()) {
@@ -110,19 +134,29 @@ public class LogGuardLayout extends AbstractStringLayout {
             String result = message;
             for (Token token : tokens) {
                 DecisionEngine.SanitizationAction action = decisionEngine.decideSanitization(token.getRiskScore());
+                String originalPair = token.getKey() + "=" + token.getValue();
                 
                 if (action == DecisionEngine.SanitizationAction.RULE_BASED_MASK) {
                     // Apply rule-based masking
                     String maskedPair = sanitizationEngine.buildMaskedPair(token.getKey(), token.getValue());
-                    String originalPair = token.getKey() + "=" + token.getValue();
                     result = result.replace(originalPair, maskedPair);
                 } 
                 else if (action == DecisionEngine.SanitizationAction.AI_SANITIZE && aiEnabled) {
-                    // For v0.1, we use rule-based masking for high-risk too
-                    // v0.2 will integrate AI service
-                    String maskedPair = sanitizationEngine.buildMaskedPair(token.getKey(), token.getValue());
-                    String originalPair = token.getKey() + "=" + token.getValue();
-                    result = result.replace(originalPair, maskedPair);
+                    // Use AI sanitization if enabled and sampled
+                    if (shouldSampleForAI()) {
+                        try {
+                            String aiSanitized = aiService.sanitize(token.getValue(), token.getKey());
+                            result = result.replace(token.getValue(), aiSanitized);
+                        } catch (Exception e) {
+                            // Fallback to rule-based masking on AI error
+                            String maskedPair = sanitizationEngine.buildMaskedPair(token.getKey(), token.getValue());
+                            result = result.replace(originalPair, maskedPair);
+                        }
+                    } else {
+                        // Not sampled, use rule-based masking
+                        String maskedPair = sanitizationEngine.buildMaskedPair(token.getKey(), token.getValue());
+                        result = result.replace(originalPair, maskedPair);
+                    }
                 }
             }
             
@@ -136,7 +170,7 @@ public class LogGuardLayout extends AbstractStringLayout {
     }
 
     /**
-     * Process exception and generate insights.
+     * Process exception and generate insights (with optional AI enhancement).
      */
     private String processException(Throwable throwable) {
         if (throwable == null) {
@@ -145,11 +179,44 @@ public class LogGuardLayout extends AbstractStringLayout {
 
         StringBuilder exceptionOutput = new StringBuilder();
         exceptionOutput.append("Exception: ").append(exceptionProcessor.getExceptionSummary(throwable)).append("\n");
-        exceptionOutput.append("Insight: ").append(exceptionProcessor.generateInsight(throwable)).append("\n");
+        
+        // Use AI for explanation if enabled and sampled
+        String insight;
+        if (aiEnabled && shouldSampleForAI() && aiService.isHealthy()) {
+            try {
+                String stackSnippet = exceptionProcessor.getStackTraceSummary(throwable, 2);
+                insight = aiService.explainException(
+                    throwable.getClass().getName(),
+                    throwable.getMessage() != null ? throwable.getMessage() : "",
+                    stackSnippet
+                );
+            } catch (Exception e) {
+                // Fallback to rule-based explanation
+                insight = exceptionProcessor.generateInsight(throwable);
+            }
+        } else {
+            // Use rule-based explanation
+            insight = exceptionProcessor.generateInsight(throwable);
+        }
+        
+        exceptionOutput.append("Insight: ").append(insight).append("\n");
         exceptionOutput.append("Stack Trace:\n");
         exceptionOutput.append(exceptionProcessor.getStackTraceSummary(throwable, 5));
         
         return exceptionOutput.toString();
+    }
+
+    /**
+     * Determine if this call should use AI (based on sampling rate).
+     */
+    private boolean shouldSampleForAI() {
+        if (samplingRate >= 1.0) {
+            return true;
+        }
+        if (samplingRate <= 0.0) {
+            return false;
+        }
+        return ThreadLocalRandom.current().nextDouble() < samplingRate;
     }
 
     /**
@@ -161,16 +228,21 @@ public class LogGuardLayout extends AbstractStringLayout {
 
     /**
      * Factory method for Log4j2 plugin creation.
+     * Supports both v0.1 (rule-based only) and v0.2 (with AI) configurations.
      */
     @PluginFactory
     public static LogGuardLayout createLayout(
             @PluginAttribute(value = "charset", defaultString = "UTF-8") Charset charset,
             @PluginAttribute(value = "aiEnabled", defaultString = "false") boolean aiEnabled,
+            @PluginAttribute(value = "aiProvider", defaultString = "openai") String aiProvider,
+            @PluginAttribute(value = "aiApiKey", defaultString = "") String aiApiKey,
+            @PluginAttribute(value = "aiModel", defaultString = "gpt-3.5-turbo") String aiModel,
             @PluginAttribute(value = "aiThreshold", defaultString = "5") int aiThreshold,
-            @PluginAttribute(value = "timeoutMs", defaultString = "150") long timeoutMs,
+            @PluginAttribute(value = "aiTimeoutMs", defaultString = "2000") long aiTimeoutMs,
             @PluginAttribute(value = "samplingRate", defaultString = "0.05") double samplingRate) {
         
-        return new LogGuardLayout(charset, aiEnabled, aiThreshold, timeoutMs, samplingRate);
+        return new LogGuardLayout(charset, aiEnabled, aiProvider, aiApiKey, aiModel, 
+                                  aiThreshold, aiTimeoutMs, samplingRate);
     }
 
     @Override
