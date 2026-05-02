@@ -12,6 +12,7 @@ Welcome to v0.2.0! This version adds AI-powered intelligence and caching to LogG
 |----------|---------|------|
 | **[Quick Start](QUICK_START.md)** | Get running in 5 minutes | 5 min |
 | **[AI Integration Guide](AI_GUIDE.md)** | Deep dive into all AI features | 20 min |
+| **[Spring Boot Guide](SPRING_BOOT_GUIDE.md)** | Using LogGuardAI with Spring Boot | 15 min |
 | **[Release Notes](RELEASE_NOTES.md)** | What changed, what's new | 10 min |
 | **[Implementation Details](IMPLEMENTATION.md)** | Technical architecture | 15 min |
 | **[Release Checklist](CHECKLIST.md)** | QA metrics & verification | 5 min |

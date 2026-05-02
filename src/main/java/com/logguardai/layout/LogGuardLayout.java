@@ -15,6 +15,7 @@ import org.apache.logging.log4j.core.config.plugins.Plugin;
 import org.apache.logging.log4j.core.config.plugins.PluginAttribute;
 import org.apache.logging.log4j.core.config.plugins.PluginFactory;
 import org.apache.logging.log4j.core.layout.AbstractStringLayout;
+import org.apache.logging.log4j.core.config.Node;
 
 import java.nio.charset.Charset;
 import java.text.SimpleDateFormat;
@@ -33,22 +34,22 @@ import java.util.concurrent.ThreadLocalRandom;
  * 
  * Configuration example (v0.2):
  * <LogGuardLayout
- *     aiEnabled="true"
- *     aiProvider="openai"
- *     aiApiKey="${OPENAI_API_KEY}"
- *     aiThreshold="5"
- *     timeoutMs="2000"
- *     samplingRate="0.1"/>
+ * aiEnabled="true"
+ * aiProvider="openai"
+ * aiApiKey="${OPENAI_API_KEY}"
+ * aiThreshold="5"
+ * aiTimeoutMs="2000"
+ * samplingRate="0.1"/>
  */
-@Plugin(name = "LogGuardLayout", category = "Layout", elementType = "Layout", printObject = true)
+@Plugin(name = "LogGuardLayout", category = Node.CATEGORY, elementType = "layout", printObject = true)
 public class LogGuardLayout extends AbstractStringLayout {
-    
+
     private final LogTokenizer tokenizer;
     private final RiskScoringEngine riskScoringEngine;
     private final DecisionEngine decisionEngine;
     private final SanitizationEngine sanitizationEngine;
     private final ExceptionProcessor exceptionProcessor;
-    
+
     private final boolean aiEnabled;
     private final AIService aiService;
     private final int aiThreshold;
@@ -57,20 +58,20 @@ public class LogGuardLayout extends AbstractStringLayout {
     private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
 
     public LogGuardLayout(Charset charset, boolean aiEnabled, String aiProvider, String aiApiKey,
-                        String aiModel, int aiThreshold, long aiTimeoutMs, double samplingRate) {
+            String aiModel, int aiThreshold, long aiTimeoutMs, double samplingRate) {
         super(charset);
         this.aiEnabled = aiEnabled;
         this.aiThreshold = aiThreshold;
         this.aiTimeoutMs = aiTimeoutMs;
         this.samplingRate = samplingRate;
-        
+
         // Initialize components
         this.tokenizer = new LogTokenizer();
         this.riskScoringEngine = new RiskScoringEngine();
         this.decisionEngine = new DecisionEngine();
         this.sanitizationEngine = new SanitizationEngine();
         this.exceptionProcessor = new ExceptionProcessor();
-        
+
         // Initialize AI service if enabled
         if (aiEnabled && aiApiKey != null && !aiApiKey.isEmpty()) {
             AIConfig aiConfig = new AIConfig();
@@ -80,7 +81,7 @@ public class LogGuardLayout extends AbstractStringLayout {
             aiConfig.setTimeoutMs(aiTimeoutMs);
             this.aiService = AIServiceFactory.createService(aiConfig);
         } else {
-            this.aiService = AIServiceFactory.createService(null);  // No-op service
+            this.aiService = AIServiceFactory.createService(null); // No-op service
         }
     }
 
@@ -90,22 +91,22 @@ public class LogGuardLayout extends AbstractStringLayout {
     @Override
     public String toSerializable(LogEvent event) {
         StringBuilder output = new StringBuilder();
-        
+
         // Format: timestamp [level] logger - message [exception]
         output.append(formatTimestamp(event.getTimeMillis()));
         output.append(" [").append(event.getLevel()).append("] ");
         output.append(event.getLoggerName()).append(" - ");
-        
+
         // Sanitize message
         String sanitizedMessage = sanitizeMessage(event.getMessage().getFormattedMessage());
         output.append(sanitizedMessage);
-        
+
         // Add exception insights if present
         if (event.getThrown() != null) {
             output.append("\n");
             output.append(processException(event.getThrown()));
         }
-        
+
         output.append("\n");
         return output.toString();
     }
@@ -121,27 +122,26 @@ public class LogGuardLayout extends AbstractStringLayout {
         try {
             // Step 1: Tokenize
             List<Token> tokens = tokenizer.tokenize(message);
-            
+
             if (tokens.isEmpty()) {
                 // No tokens extracted, return as-is
                 return message;
             }
-            
+
             // Step 2: Score tokens
             riskScoringEngine.scoreTokens(tokens);
-            
+
             // Step 3-4: Decide and sanitize
             String result = message;
             for (Token token : tokens) {
                 DecisionEngine.SanitizationAction action = decisionEngine.decideSanitization(token.getRiskScore());
                 String originalPair = token.getKey() + "=" + token.getValue();
-                
+
                 if (action == DecisionEngine.SanitizationAction.RULE_BASED_MASK) {
                     // Apply rule-based masking
                     String maskedPair = sanitizationEngine.buildMaskedPair(token.getKey(), token.getValue());
                     result = result.replace(originalPair, maskedPair);
-                } 
-                else if (action == DecisionEngine.SanitizationAction.AI_SANITIZE && aiEnabled) {
+                } else if (action == DecisionEngine.SanitizationAction.AI_SANITIZE && aiEnabled) {
                     // Use AI sanitization if enabled and sampled
                     if (shouldSampleForAI()) {
                         try {
@@ -159,9 +159,9 @@ public class LogGuardLayout extends AbstractStringLayout {
                     }
                 }
             }
-            
+
             return result;
-            
+
         } catch (Exception e) {
             // Fail-safe: always return original message rather than breaking logging
             System.err.println("LogGuardAI: Error during sanitization, returning original message: " + e.getMessage());
@@ -179,17 +179,16 @@ public class LogGuardLayout extends AbstractStringLayout {
 
         StringBuilder exceptionOutput = new StringBuilder();
         exceptionOutput.append("Exception: ").append(exceptionProcessor.getExceptionSummary(throwable)).append("\n");
-        
+
         // Use AI for explanation if enabled and sampled
         String insight;
         if (aiEnabled && shouldSampleForAI() && aiService.isHealthy()) {
             try {
                 String stackSnippet = exceptionProcessor.getStackTraceSummary(throwable, 2);
                 insight = aiService.explainException(
-                    throwable.getClass().getName(),
-                    throwable.getMessage() != null ? throwable.getMessage() : "",
-                    stackSnippet
-                );
+                        throwable.getClass().getName(),
+                        throwable.getMessage() != null ? throwable.getMessage() : "",
+                        stackSnippet);
             } catch (Exception e) {
                 // Fallback to rule-based explanation
                 insight = exceptionProcessor.generateInsight(throwable);
@@ -198,11 +197,11 @@ public class LogGuardLayout extends AbstractStringLayout {
             // Use rule-based explanation
             insight = exceptionProcessor.generateInsight(throwable);
         }
-        
+
         exceptionOutput.append("Insight: ").append(insight).append("\n");
         exceptionOutput.append("Stack Trace:\n");
         exceptionOutput.append(exceptionProcessor.getStackTraceSummary(throwable, 5));
-        
+
         return exceptionOutput.toString();
     }
 
@@ -240,9 +239,9 @@ public class LogGuardLayout extends AbstractStringLayout {
             @PluginAttribute(value = "aiThreshold", defaultString = "5") int aiThreshold,
             @PluginAttribute(value = "aiTimeoutMs", defaultString = "2000") long aiTimeoutMs,
             @PluginAttribute(value = "samplingRate", defaultString = "0.05") double samplingRate) {
-        
-        return new LogGuardLayout(charset, aiEnabled, aiProvider, aiApiKey, aiModel, 
-                                  aiThreshold, aiTimeoutMs, samplingRate);
+
+        return new LogGuardLayout(charset, aiEnabled, aiProvider, aiApiKey, aiModel,
+                aiThreshold, aiTimeoutMs, samplingRate);
     }
 
     @Override

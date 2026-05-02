@@ -60,13 +60,13 @@ LogGuardAI is a Log4j2 plugin that intercepts log events and intelligently sanit
 <dependency>
     <groupId>com.logguardai</groupId>
     <artifactId>logguardai</artifactId>
-    <version>0.2.0</version>  <!-- Latest: AI + Caching -->
+    <version>0.3.0</version>  <!-- Latest: Spring Boot Support -->
 </dependency>
 ```
 
 ### 2. Configure log4j2.xml
 ```xml
-<Configuration packages="com.logguardai">
+<Configuration>
   <Appenders>
     <Console name="Console" target="SYSTEM_OUT">
       <LogGuardLayout/>
@@ -261,7 +261,7 @@ mvn test
 
 ### Verify Installation
 ```bash
-ls target/logguardai-0.2.0.jar
+ls target/logguardai-0.3.0.jar
 ```
 
 ---
@@ -270,7 +270,8 @@ ls target/logguardai-0.2.0.jar
 
 | Version | Release Date | Status | What's New |
 |---------|--------------|--------|-----------|
-| **v0.2.0** | 2026-04-23 | ✅ Latest | AI + Caching |
+| **v0.3.0** | 2026-05-01 | ✅ Latest | Plugin Registration Fix |
+| **v0.2.0** | 2026-04-23 | ✅ Stable | AI + Caching |
 | **v0.1.0** | 2026-04-22 | ✅ Stable | Rule-based masking |
 
 → See [CHANGELOG](CHANGELOG.md) for complete history

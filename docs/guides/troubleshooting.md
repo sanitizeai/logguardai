@@ -27,7 +27,7 @@ ClassNotFoundException: com.logguardai.layout.LogGuardLayout
 <dependency>
     <groupId>com.github.sanitizeai</groupId>
     <artifactId>logguardai</artifactId>
-    <version>v0.2.0</version>  <!-- Use correct version -->
+    <version>v0.3.0</version>  <!-- Use correct version -->
 </dependency>
 ```
 
@@ -62,7 +62,7 @@ ERROR StatusLogger No config found for logguardai
 Create `src/main/resources/log4j2.xml`:
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
-<Configuration packages="com.logguardai">
+<Configuration>
   <Appenders>
     <Console name="Console" target="SYSTEM_OUT">
       <LogGuardLayout/>
@@ -404,7 +404,7 @@ When troubleshooting, check:
 
 ```bash
 # Check JAR loaded
-jar tf ~/.m2/repository/com/github/sanitizeai/logguardai/v0.2.0/logguardai-v0.2.0.jar | grep LogGuardLayout
+jar tf ~/.m2/repository/com/github/sanitizeai/logguardai/v0.3.0/logguardai-v0.3.0.jar | grep LogGuardLayout
 
 # Should show: com/logguardai/layout/LogGuardLayout.class
 ```

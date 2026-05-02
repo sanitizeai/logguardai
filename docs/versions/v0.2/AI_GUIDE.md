@@ -51,7 +51,7 @@ $env:OPENAI_API_KEY = "sk-..."
 ### 4. Configure log4j2.xml
 
 ```xml
-<Configuration packages="com.logguardai">
+<Configuration>
     <Appenders>
         <Console name="Console">
             <LogGuardLayout

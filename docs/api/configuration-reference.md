@@ -140,7 +140,7 @@ public static Layout createLayout(
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
-<Configuration packages="com.logguardai">
+<Configuration>
   <Appenders>
     <Console name="Console" target="SYSTEM_OUT">
       <LogGuardLayout

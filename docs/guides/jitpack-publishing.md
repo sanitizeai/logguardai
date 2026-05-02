@@ -142,7 +142,7 @@ In your `pom.xml`, add the repository:
 3. Add LogGuardAI to your `log4j2.xml`:
 
 ```xml
-<Configuration packages="com.logguardai">
+<Configuration>
     <Appenders>
         <Console name="Console">
             <LogGuardLayout
@@ -194,15 +194,15 @@ For future releases, just:
 3. Create a new GitHub release with the tag
 4. JitPack automatically builds it
 
-**Example:** For v0.2.0:
+**Example:** For v0.3.0:
 ```bash
-git tag -a v0.2.0 -m "LogGuardAI v0.2.0 - AI Integration"
-git push origin v0.2.0
+git tag -a v0.3.0 -m "LogGuardAI v0.3.0 - Spring Boot Compatibility"
+git push origin v0.3.0
 ```
 
 Then use in pom.xml:
 ```xml
-<version>v0.2.0</version>
+<version>v0.3.0</version>
 ```
 
 ---

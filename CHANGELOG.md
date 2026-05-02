@@ -8,6 +8,18 @@ All notable changes to LogGuardAI are documented here.
 
 ## Versions
 
+### v0.3.0 — Proper Log4j2 Plugin Registration & Spring Boot Support
+**Released:** May 01, 2026
+**Status:** ✅ Latest Stable
+**Type:** Bug Fix & Enhancement
+
+#### ✨ Features & Fixes
+- 🐛 **Spring Boot Compatibility:** Fixed bug where Log4j2 couldn't discover the plugin due to missing `@Plugin` metadata.
+- 🔧 **Annotation Processor:** Added Log4j2 plugin annotation processor so `Log4j2Plugins.dat` is created during compilation.
+- 📝 **Documentation:** Updated doc examples to explicitly remove deprecated `packages="com.logguardai"` from `log4j2.xml`.
+
+---
+
 ### v0.2.0 — AI Integration with Caching
 **Released:** April 23, 2026  
 **Status:** ✅ Latest Stable  
@@ -112,8 +124,9 @@ See [detailed migration guide](docs/versions/v0.2/MIGRATION.md)
 
 | Version | Date | Status | Notable |
 |---------|------|--------|---------|
-| **v0.3** | TBD | Planning | Async sampling, more providers |
-| **v0.2.0** | Apr 23, 2026 | ✅ Current | AI + Caching |
+| **v0.4** | TBD | Planning | Async sampling, more providers |
+| **v0.3.0** | May 01, 2026 | ✅ Current | Proper Plugin Registration |
+| **v0.2.0** | Apr 23, 2026 | ✅ Stable | AI + Caching |
 | **v0.1.0** | Apr 22, 2026 | ✅ Stable | Core masking |
 
 ---
@@ -133,7 +146,7 @@ See [detailed migration guide](docs/versions/v0.2/MIGRATION.md)
   <dependency>
     <groupId>com.github.sanitizeai</groupId>
     <artifactId>logguardai</artifactId>
-    <version>v0.2.0</version>  <!-- Current: v0.2.0 -->
+    <version>v0.3.0</version>  <!-- Current: v0.3.0 -->
   </dependency>
 </project>
 ```
@@ -161,8 +174,8 @@ LogGuardAI follows **Semantic Versioning** (MAJOR.MINOR.PATCH):
 - **MINOR** (e.g., 0.2.0) — New features, backward compatible
 - **PATCH** (e.g., 0.2.1) — Bug fixes, no new features
 
-Current: **v0.2.0** (minor version = new features, full backward compatibility)
+Current: **v0.3.0** (minor version = new features, full backward compatibility)
 
 ---
 
-*Last Updated: 2026-04-23 | [Full Documentation](docs/README.md)*
+*Last Updated: 2026-05-01 | [Full Documentation](docs/README.md)*

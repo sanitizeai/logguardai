@@ -7,7 +7,7 @@
 
     <groupId>com.logguardai</groupId>
     <artifactId>logguardai</artifactId>
-    <version>0.2.0</version>
+    <version>0.3.0</version>
     <name>LogGuardAI</name>
     <description>Context-aware Log4j2 extension for sensitive data sanitization. Detects and masks sensitive information using intelligent heuristics without breaking logging.</description>
     <url>https://github.com/sanitizeai/logguardai</url>
@@ -53,11 +53,13 @@
             <groupId>org.apache.logging.log4j</groupId>
             <artifactId>log4j-core</artifactId>
             <version>${log4j.version}</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>
             <artifactId>log4j-api</artifactId>
             <version>${log4j.version}</version>
+            <scope>provided</scope>
         </dependency>
 
         <!-- JSON Processing -->
@@ -85,6 +87,13 @@
                 <configuration>
                     <source>8</source>
                     <target>8</target>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.apache.logging.log4j</groupId>
+                            <artifactId>log4j-core</artifactId>
+                            <version>${log4j.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
                 </configuration>
             </plugin>
 

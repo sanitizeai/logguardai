@@ -196,7 +196,7 @@ Possible fix: ensure object initialization before usage.
 ## ⚙️ Configuration
 
 ```xml
-<Configuration packages="com.logguardai">
+<Configuration>
     <Appenders>
         <Console name="Console">
             <LogGuardLayout

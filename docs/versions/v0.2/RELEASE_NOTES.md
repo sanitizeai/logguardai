@@ -83,7 +83,7 @@ LogGuardAI v0.2 enhances v0.1 with **AI-powered sanitization**, **in-memory cach
 ### With AI Enabled (OpenAI)
 
 ```xml
-<Configuration packages="com.logguardai">
+<Configuration>
     <Appenders>
         <Console name="Console">
             <LogGuardLayout
