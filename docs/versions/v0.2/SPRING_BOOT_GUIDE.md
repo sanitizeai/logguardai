@@ -3,7 +3,7 @@
 Complete guide for integrating LogGuardAI with Spring Boot applications.
 
 **Compatibility:** Spring Boot 2.x and 3.x | Java 8+  
-**LogGuardAI Version:** 0.3.0+ (recommended) | 0.2.0+ (supported)
+**LogGuardAI Version:** 0.4.0+ (recommended) | 0.3.0+ (supported)
 
 ---
 
@@ -18,7 +18,7 @@ LogGuardAI is a **Log4j2 plugin**. Spring Boot defaults to Logback, so you need 
 
 ## 📋 Option 1: Spring Boot with Log4j2 (Recommended)
 
-**v0.3.0+ ✨ NEW:** Proper Log4j2 plugin registration - no package scanning needed!
+**v0.4.0+ ✨ NEW:** Multi-provider AI support with Anthropic Claude and Azure OpenAI!
 
 ### Step 1: Update pom.xml
 
@@ -49,7 +49,7 @@ Remove default Logback, add Log4j2:
     <dependency>
         <groupId>com.logguardai</groupId>
         <artifactId>logguardai</artifactId>
-        <version>0.3.0</version>
+        <version>0.4.0</version>
     </dependency>
 
     <!-- Other Spring Boot starters as needed -->

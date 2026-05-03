@@ -22,13 +22,40 @@ public class AIServiceFactoryTest {
     }
     
     @Test
-    public void testCreateOpenAIConfig() {
+    public void testCreateAnthropicConfig() {
         AIConfig config = new AIConfig();
-        config.setApiProvider("openai");
-        config.setApiKey("test-key");  // Would fail health check, but doesn't throw
-        
+        config.setApiProvider("anthropic");
+        config.setApiKey("test-key");
+        config.setModel("claude-3-sonnet-20240229");
+
         AIService service = AIServiceFactory.createService(config);
         assertNotNull(service);
+        assertTrue(service instanceof AnthropicAIService);
+    }
+
+    @Test
+    public void testCreateAzureOpenAIConfig() {
+        AIConfig config = new AIConfig();
+        config.setApiProvider("azure-openai");
+        config.setApiKey("test-key");
+        config.setModel("gpt-35-turbo");
+        config.setAzureEndpoint("https://test.openai.azure.com");
+        config.setAzureDeployment("gpt-35-turbo");
+
+        AIService service = AIServiceFactory.createService(config);
+        assertNotNull(service);
+        assertTrue(service instanceof AzureOpenAIService);
+    }
+
+    @Test
+    public void testCreateUnknownProvider() {
+        AIConfig config = new AIConfig();
+        config.setApiProvider("unknown-provider");
+        config.setApiKey("test-key");
+
+        AIService service = AIServiceFactory.createService(config);
+        assertNotNull(service);
+        assertTrue(service instanceof NoOpAIService);
     }
     
     @Test

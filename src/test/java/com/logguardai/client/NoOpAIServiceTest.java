@@ -2,6 +2,9 @@ package com.logguardai.client;
 
 import com.logguardai.ai.AIService;
 import org.junit.Test;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.CompletableFuture;
+import java.util.*;
 import static org.junit.Assert.*;
 
 public class NoOpAIServiceTest {
@@ -46,5 +49,66 @@ public class NoOpAIServiceTest {
         String name = service.getServiceName();
         assertNotNull(name);
         assertTrue(name.contains("No-Op"));
+    }
+
+    @Test
+    public void testSanitizeAsync() throws Exception {
+        CompletableFuture<String> future = service.sanitizeAsync("secret_value", "password");
+        String result = future.get(200, TimeUnit.MILLISECONDS);
+        assertNotNull(result);
+        assertEquals("[REDACTED]", result);
+    }
+    
+    @Test
+    public void testSanitizeBatch() throws Exception {
+        List<String> values = Arrays.asList("secret1", "secret2", "secret3");
+        List<String> contexts = Arrays.asList("password", "token", "key");
+        
+        Map<String, String> result = service.sanitizeBatch(values, contexts);
+        
+        assertNotNull(result);
+        assertEquals(3, result.size());
+        assertEquals("[REDACTED]", result.get("secret1"));
+        assertEquals("[REDACTED]", result.get("secret2"));
+        assertEquals("[REDACTED]", result.get("secret3"));
+    }
+    
+    @Test
+    public void testSanitizeBatchEmpty() throws Exception {
+        List<String> values = new ArrayList<>();
+        List<String> contexts = new ArrayList<>();
+        
+        Map<String, String> result = service.sanitizeBatch(values, contexts);
+        
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
+    }
+    
+    @Test
+    public void testClassifyDataBatch() throws Exception {
+        List<String> values = Arrays.asList("user@example.com", "a1b2c3d4e5f678901234567890123456789012", "normal text");
+        List<String> contexts = Arrays.asList("email", "apiKey", "message");
+        
+        Map<String, String> result = service.classifyDataBatch(values, contexts);
+        
+        assertNotNull(result);
+        assertEquals(3, result.size());
+        assertEquals("public", result.get("user@example.com"));
+        assertEquals("sensitive", result.get("a1b2c3d4e5f678901234567890123456789012"));
+        assertEquals("public", result.get("normal text"));
+    }
+    
+    @Test
+    public void testClassifyDataBatchAsync() throws Exception {
+        List<String> values = Arrays.asList("abcdef12345678901234567890123456789012", "normal");
+        List<String> contexts = Arrays.asList("password", "text");
+        
+        CompletableFuture<Map<String, String>> future = service.classifyDataBatchAsync(values, contexts);
+        Map<String, String> result = future.get(200, TimeUnit.MILLISECONDS);
+        
+        assertNotNull(result);
+        assertEquals(2, result.size());
+        assertEquals("sensitive", result.get("abcdef12345678901234567890123456789012"));
+        assertEquals("public", result.get("normal"));
     }
 }

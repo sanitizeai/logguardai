@@ -4,6 +4,10 @@ import com.logguardai.ai.AIService;
 import com.logguardai.ai.AIServiceException;
 import com.logguardai.cache.LRUCache;
 
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
+
 /**
  * Cached wrapper for AIService implementations.
  * 
@@ -67,6 +71,138 @@ public class CachedAIService implements AIService {
 
         String result = delegate.classifyData(value, context);
         cache.put(cacheKey, result);
+        return result;
+    }
+
+    @Override
+    public java.util.concurrent.CompletableFuture<String> sanitizeAsync(String value, String context) {
+        String cacheKey = "sanitize:" + value + ":" + (context != null ? context : "");
+        String cached = cache.get(cacheKey);
+        if (cached != null) {
+            return java.util.concurrent.CompletableFuture.completedFuture(cached);
+        }
+
+        return delegate.sanitizeAsync(value, context).thenApply(result -> {
+            cache.put(cacheKey, result);
+            return result;
+        });
+    }
+
+    @Override
+    public java.util.concurrent.CompletableFuture<String> explainExceptionAsync(String exceptionType, String message, String stackTraceSnippet) {
+        String cacheKey = "exception:" + exceptionType + ":" + message;
+        String cached = cache.get(cacheKey);
+        if (cached != null) {
+            return java.util.concurrent.CompletableFuture.completedFuture(cached);
+        }
+
+        return delegate.explainExceptionAsync(exceptionType, message, stackTraceSnippet).thenApply(result -> {
+            cache.put(cacheKey, result);
+            return result;
+        });
+    }
+
+    @Override
+    public java.util.concurrent.CompletableFuture<String> classifyDataAsync(String value, String context) {
+        String cacheKey = "classify:" + value + ":" + (context != null ? context : "");
+        String cached = cache.get(cacheKey);
+        if (cached != null) {
+            return java.util.concurrent.CompletableFuture.completedFuture(cached);
+        }
+
+        return delegate.classifyDataAsync(value, context).thenApply(result -> {
+            cache.put(cacheKey, result);
+            return result;
+        });
+    }
+
+    @Override
+    public Map<String, String> sanitizeBatch(List<String> values, List<String> contexts) throws AIServiceException {
+        if (values == null || values.isEmpty()) {
+            return new HashMap<>();
+        }
+
+        Map<String, String> result = new HashMap<>();
+        List<String> uncachedValues = new ArrayList<>();
+        List<String> uncachedContexts = new ArrayList<>();
+        List<Integer> uncachedIndices = new ArrayList<>();
+
+        // Check cache for each value
+        for (int i = 0; i < values.size(); i++) {
+            String value = values.get(i);
+            String context = (contexts != null && i < contexts.size()) ? contexts.get(i) : "";
+            String cacheKey = "sanitize:" + value + ":" + context;
+
+            String cached = cache.get(cacheKey);
+            if (cached != null) {
+                result.put(value, cached);
+            } else {
+                uncachedValues.add(value);
+                uncachedContexts.add(context);
+                uncachedIndices.add(i);
+            }
+        }
+
+        // Call delegate for uncached values
+        if (!uncachedValues.isEmpty()) {
+            Map<String, String> delegateResults = delegate.sanitizeBatch(uncachedValues, uncachedContexts);
+
+            // Cache and add to result
+            for (Map.Entry<String, String> entry : delegateResults.entrySet()) {
+                String value = entry.getKey();
+                String sanitized = entry.getValue();
+                String context = uncachedContexts.get(uncachedValues.indexOf(value));
+                String cacheKey = "sanitize:" + value + ":" + context;
+
+                cache.put(cacheKey, sanitized);
+                result.put(value, sanitized);
+            }
+        }
+
+        return result;
+    }
+
+    @Override
+    public Map<String, String> classifyDataBatch(List<String> values, List<String> contexts) throws AIServiceException {
+        if (values == null || values.isEmpty()) {
+            return new HashMap<>();
+        }
+
+        Map<String, String> result = new HashMap<>();
+        List<String> uncachedValues = new ArrayList<>();
+        List<String> uncachedContexts = new ArrayList<>();
+
+        // Check cache for each value
+        for (int i = 0; i < values.size(); i++) {
+            String value = values.get(i);
+            String context = (contexts != null && i < contexts.size()) ? contexts.get(i) : "";
+            String cacheKey = "classify:" + value + ":" + context;
+
+            String cached = cache.get(cacheKey);
+            if (cached != null) {
+                result.put(value, cached);
+            } else {
+                uncachedValues.add(value);
+                uncachedContexts.add(context);
+            }
+        }
+
+        // Call delegate for uncached values
+        if (!uncachedValues.isEmpty()) {
+            Map<String, String> delegateResults = delegate.classifyDataBatch(uncachedValues, uncachedContexts);
+
+            // Cache and add to result
+            for (Map.Entry<String, String> entry : delegateResults.entrySet()) {
+                String value = entry.getKey();
+                String sanitized = entry.getValue();
+                String context = uncachedContexts.get(uncachedValues.indexOf(value));
+                String cacheKey = "classify:" + value + ":" + context;
+
+                cache.put(cacheKey, sanitized);
+                result.put(value, sanitized);
+            }
+        }
+
         return result;
     }
 

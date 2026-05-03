@@ -44,6 +44,22 @@ LogGuardAI is a Log4j2 plugin that intercepts log events and intelligently sanit
 - 🔍 **Data Classification** — Automatically identify PII vs. sensitive data
 - 📊 **Configurable Sampling** — Control AI costs (5%-100%)
 
+### v0.3: Batch Processing (Performance Optimized)
+- 📦 **Batch AI Processing** — Process multiple sensitive values together (5x efficiency)
+- ⚡ **Async/Non-Blocking** — AI calls never block log threads (<5ms guaranteed)
+- 🔄 **Smart Fallbacks** — Rule-based masking if AI fails or times out
+- 🐛 **Spring Boot Compatibility** — Fixed Log4j2 plugin registration issues
+
+### v0.4: Multi-Provider AI Support (Enterprise Ready)
+- 🤖 **Multi-Provider AI** — OpenAI, Anthropic Claude, or Azure OpenAI
+- 🏗️ **Anthropic Claude Integration** — Claude 3 models with Messages API
+- ☁️ **Azure OpenAI Integration** — Custom endpoints and deployments
+- 🔧 **Provider-Specific Configuration** — Azure endpoints, deployments, API versions
+- 🏷️ **Enhanced Model Support** — GPT-4, Claude 3, Azure deployments
+- 📊 **Configurable Batch Size** — Tune performance vs. API efficiency
+- 🤖 **Multi-Provider Support** — OpenAI, Anthropic Claude, Azure OpenAI
+- 🏗️ **Backward Compatible** — Existing configurations work unchanged
+
 ---
 
 ## 🚀 Quick Start (5 minutes)
@@ -60,7 +76,7 @@ LogGuardAI is a Log4j2 plugin that intercepts log events and intelligently sanit
 <dependency>
     <groupId>com.logguardai</groupId>
     <artifactId>logguardai</artifactId>
-    <version>0.3.0</version>  <!-- Latest: Spring Boot Support -->
+    <version>0.4.0</version>  <!-- Latest: Multi-Provider AI Support -->
 </dependency>
 ```
 
@@ -81,29 +97,55 @@ LogGuardAI is a Log4j2 plugin that intercepts log events and intelligently sanit
 </Configuration>
 ```
 
-### 3. Done! (Optional: Enable AI)
+### 3. Done! (Optional: Enable AI with Batch Processing)
 ```xml
-<!-- Add AI features for smarter masking -->
+<!-- OpenAI (default) -->
 <LogGuardLayout
     aiEnabled="true"
     aiProvider="openai"
     aiApiKey="${OPENAI_API_KEY}"
-    samplingRate="0.1"/>
+    aiModel="gpt-3.5-turbo"
+    samplingRate="0.1"
+    batchSize="5"/>
+
+<!-- Anthropic Claude -->
+<LogGuardLayout
+    aiEnabled="true"
+    aiProvider="anthropic"
+    aiApiKey="${ANTHROPIC_API_KEY}"
+    aiModel="claude-3-sonnet-20240229"
+    samplingRate="0.1"
+    batchSize="5"/>
+
+<!-- Azure OpenAI -->
+<LogGuardLayout
+    aiEnabled="true"
+    aiProvider="azure-openai"
+    aiApiKey="${AZURE_OPENAI_API_KEY}"
+    aiModel="gpt-35-turbo"
+    azureEndpoint="https://your-resource.openai.azure.com"
+    azureDeployment="your-deployment-name"
+    azureApiVersion="2023-12-01"
+    samplingRate="0.1"
+    batchSize="5"/>
 ```
 
 ---
 
-## 📊 Comparison: v0.1 vs v0.2
+## 📊 Comparison: v0.1 vs v0.2 vs v0.3 vs v0.4
 
-| Feature | v0.1 | v0.2 |
-|---------|------|------|
-| **Rule-Based Masking** | ✅ | ✅ |
-| **AI Sanitization** | ❌ | ✅ |
-| **LRU Caching** | ❌ | ✅ |
-| **Latency** | <5ms | <5ms (rule-based)<br/>~1500ms (API)<br/><1ms (cached) |
-| **Cost/10M logs** | $0 | $95 (no cache)<br/>$19 (with cache) |
-| **Dependencies** | 0 | 0 new |
-| **Backward Compatible** | N/A | ✅ 100% |
+| Feature | v0.1 | v0.2 | v0.3 | v0.4 |
+|---------|------|------|------|------|
+| **Rule-Based Masking** | ✅ | ✅ | ✅ | ✅ |
+| **AI Sanitization** | ❌ | ✅ | ✅ | ✅ |
+| **LRU Caching** | ❌ | ✅ | ✅ | ✅ |
+| **Batch Processing** | ❌ | ❌ | ✅ | ✅ |
+| **Async/Non-Blocking** | ❌ | ❌ | ✅ | ✅ |
+| **Multi-Provider AI** | ❌ | ❌ | ❌ | ✅ |
+| **Latency** | <5ms | <5ms (rule-based)<br/>~1500ms (API)<br/><1ms (cached) | <5ms guaranteed | <5ms guaranteed |
+| **Cost/10M logs** | $0 | $95 (no cache)<br/>$19 (with cache) | $15-20 (with batching) | $15-20 (with batching) |
+| **Dependencies** | 0 | 0 new | 0 new | 0 new |
+| **Backward Compatible** | N/A | ✅ 100% | ✅ 100% | ✅ 100% |
 
 ---
 
@@ -124,17 +166,20 @@ logger.info("User login: userId=12345 token=sk-abcdef123 password=secret");
 
 **Development (AI Testing)**
 ```xml
-<LogGuardLayout aiEnabled="true" samplingRate="0.05" aiTimeoutMs="1000"/>
+<LogGuardLayout aiEnabled="true" aiProvider="openai" samplingRate="0.05" aiTimeoutMs="1000" batchSize="3"/>
+<!-- Or with Anthropic: aiProvider="anthropic" aiModel="claude-3-haiku-20240307" -->
 ```
 
 **Production (Balanced)**
 ```xml
-<LogGuardLayout aiEnabled="true" samplingRate="0.1" aiTimeoutMs="2000"/>
+<LogGuardLayout aiEnabled="true" aiProvider="openai" samplingRate="0.1" aiTimeoutMs="2000" batchSize="5"/>
+<!-- Or with Azure: aiProvider="azure-openai" azureEndpoint="..." azureDeployment="..." -->
 ```
 
 **High-Security (Premium)**
 ```xml
-<LogGuardLayout aiEnabled="true" aiModel="gpt-4" samplingRate="1.0"/>
+<LogGuardLayout aiEnabled="true" aiProvider="openai" aiModel="gpt-4" samplingRate="1.0" batchSize="10"/>
+<!-- Or with Claude: aiProvider="anthropic" aiModel="claude-3-sonnet-20240229" -->
 ```
 
 **Fast (No AI)**
@@ -261,7 +306,7 @@ mvn test
 
 ### Verify Installation
 ```bash
-ls target/logguardai-0.3.0.jar
+ls target/logguardai-0.4.0.jar
 ```
 
 ---
@@ -270,7 +315,8 @@ ls target/logguardai-0.3.0.jar
 
 | Version | Release Date | Status | What's New |
 |---------|--------------|--------|-----------|
-| **v0.3.0** | 2026-05-01 | ✅ Latest | Plugin Registration Fix |
+| **v0.4.0** | 2026-05-03 | ✅ Latest | Multi-Provider AI Support |
+| **v0.3.0** | 2026-05-01 | ✅ Stable | Plugin Registration Fix |
 | **v0.2.0** | 2026-04-23 | ✅ Stable | AI + Caching |
 | **v0.1.0** | 2026-04-22 | ✅ Stable | Rule-based masking |
 

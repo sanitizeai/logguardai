@@ -13,22 +13,27 @@ import java.util.*;
 import java.util.concurrent.*;
 
 /**
- * OpenAI GPT-based AI service implementation.
- * 
- * Supports GPT-3.5-turbo and GPT-4 models with timeout protection.
+ * Azure OpenAI service implementation.
+ *
+ * Supports Azure OpenAI deployments with custom endpoints.
  * Uses HTTP/JSON for direct API calls (no external dependencies).
  */
-public class OpenAIService implements AIService {
-    
-    private static final String OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
-    private static final String OPENAI_API_VERSION = "v1";
-    
+public class AzureOpenAIService implements AIService {
+
     private final AIConfig config;
     private boolean healthy = false;
     private final ExecutorService executor = Executors.newFixedThreadPool(3);
+    private final String azureEndpoint;
+    private final String deploymentName;
+    private final String apiVersion;
 
-    public OpenAIService(AIConfig config) {
+    public AzureOpenAIService(AIConfig config) {
         this.config = config;
+        // Use Azure-specific configuration fields
+        this.azureEndpoint = config.getAzureEndpoint() != null ? config.getAzureEndpoint() : "https://your-resource.openai.azure.com";
+        this.deploymentName = config.getAzureDeployment() != null ? config.getAzureDeployment() : "gpt-35-turbo";
+        this.apiVersion = config.getAzureApiVersion() != null ? config.getAzureApiVersion() : "2023-12-01";
+
         if (config.isConfigured()) {
             this.healthy = checkHealth();
         }
@@ -37,7 +42,7 @@ public class OpenAIService implements AIService {
     @Override
     public String sanitize(String value, String context) throws AIServiceException {
         if (!healthy) {
-            throw new AIServiceException("OpenAI service not healthy");
+            throw new AIServiceException("Azure OpenAI service not healthy");
         }
 
         String prompt = String.format(
@@ -47,14 +52,14 @@ public class OpenAIService implements AIService {
             context != null ? context : "unknown", value
         );
 
-        return callOpenAI(prompt, "Sanitize value", config.getTimeoutMs());
+        return callAzureOpenAI(prompt, "Sanitize value", config.getTimeoutMs());
     }
 
     @Override
-    public String explainException(String exceptionType, String message, String stackTraceSnippet) 
+    public String explainException(String exceptionType, String message, String stackTraceSnippet)
             throws AIServiceException {
         if (!healthy) {
-            throw new AIServiceException("OpenAI service not healthy");
+            throw new AIServiceException("Azure OpenAI service not healthy");
         }
 
         String prompt = String.format(
@@ -67,13 +72,13 @@ public class OpenAIService implements AIService {
             exceptionType, message, stackTraceSnippet
         );
 
-        return callOpenAI(prompt, "Explain exception", config.getTimeoutMs());
+        return callAzureOpenAI(prompt, "Explain exception", config.getTimeoutMs());
     }
 
     @Override
     public String classifyData(String value, String context) throws AIServiceException {
         if (!healthy) {
-            throw new AIServiceException("OpenAI service not healthy");
+            throw new AIServiceException("Azure OpenAI service not healthy");
         }
 
         String prompt = String.format(
@@ -83,15 +88,90 @@ public class OpenAIService implements AIService {
             context != null ? context : "unknown", value
         );
 
-        String result = callOpenAI(prompt, "Classify data", config.getTimeoutMs());
+        String result = callAzureOpenAI(prompt, "Classify data", config.getTimeoutMs());
         return result.toLowerCase().trim();
+    }
+
+    @Override
+    public Map<String, String> sanitizeBatch(List<String> values, List<String> contexts) throws AIServiceException {
+        if (!healthy) {
+            throw new AIServiceException("Azure OpenAI service not healthy");
+        }
+
+        if (values == null || values.isEmpty()) {
+            return new HashMap<>();
+        }
+
+        // Build batch prompt
+        StringBuilder prompt = new StringBuilder();
+        prompt.append("You are a data sanitization expert. Sanitize these sensitive values without revealing their type or content.\n");
+        prompt.append("Return ONLY a JSON object where each key is the original value and the value is the sanitized version.\n");
+        prompt.append("Use generic placeholders like '[REDACTED]', '[MASKED]', hash-like strings, etc.\n\n");
+
+        for (int i = 0; i < values.size(); i++) {
+            String context = (contexts != null && i < contexts.size()) ? contexts.get(i) : "unknown";
+            prompt.append(String.format("Field %d: %s\nValue %d: %s\n\n", i + 1, context, i + 1, values.get(i)));
+        }
+
+        prompt.append("Return format: {\"original_value1\": \"sanitized1\", \"original_value2\": \"sanitized2\", ...}");
+
+        String response = callAzureOpenAI(prompt.toString(), "Batch sanitize", config.getTimeoutMs());
+
+        try {
+            // Parse JSON response
+            JsonObject json = new JsonParser().parse(response).getAsJsonObject();
+            Map<String, String> result = new HashMap<>();
+            for (Map.Entry<String, JsonElement> entry : json.entrySet()) {
+                result.put(entry.getKey(), entry.getValue().getAsString());
+            }
+            return result;
+        } catch (Exception e) {
+            throw new AIServiceException("Failed to parse batch sanitization response: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public Map<String, String> classifyDataBatch(List<String> values, List<String> contexts) throws AIServiceException {
+        if (!healthy) {
+            throw new AIServiceException("Azure OpenAI service not healthy");
+        }
+
+        if (values == null || values.isEmpty()) {
+            return new HashMap<>();
+        }
+
+        // Build batch prompt
+        StringBuilder prompt = new StringBuilder();
+        prompt.append("Classify these data values as one of: 'pii' (personally identifiable), 'sensitive' (confidential), 'public' (safe), or 'unknown'.\n");
+        prompt.append("Return ONLY a JSON object where each key is the original value and the value is the classification.\n\n");
+
+        for (int i = 0; i < values.size(); i++) {
+            String context = (contexts != null && i < contexts.size()) ? contexts.get(i) : "unknown";
+            prompt.append(String.format("Field %d: %s\nValue %d: %s\n\n", i + 1, context, i + 1, values.get(i)));
+        }
+
+        prompt.append("Return format: {\"value1\": \"pii\", \"value2\": \"sensitive\", ...}");
+
+        String response = callAzureOpenAI(prompt.toString(), "Batch classify", config.getTimeoutMs());
+
+        try {
+            // Parse JSON response
+            JsonObject json = new JsonParser().parse(response).getAsJsonObject();
+            Map<String, String> result = new HashMap<>();
+            for (Map.Entry<String, JsonElement> entry : json.entrySet()) {
+                result.put(entry.getKey(), entry.getValue().getAsString().toLowerCase().trim());
+            }
+            return result;
+        } catch (Exception e) {
+            throw new AIServiceException("Failed to parse batch classification response: " + e.getMessage(), e);
+        }
     }
 
     @Override
     public CompletableFuture<String> sanitizeAsync(String value, String context) {
         if (!healthy) {
             CompletableFuture<String> failed = new CompletableFuture<>();
-            failed.completeExceptionally(new AIServiceException("OpenAI service not healthy"));
+            failed.completeExceptionally(new AIServiceException("Azure OpenAI service not healthy"));
             return failed;
         }
 
@@ -115,7 +195,7 @@ public class OpenAIService implements AIService {
     public CompletableFuture<String> explainExceptionAsync(String exceptionType, String message, String stackTraceSnippet) {
         if (!healthy) {
             CompletableFuture<String> failed = new CompletableFuture<>();
-            failed.completeExceptionally(new AIServiceException("OpenAI service not healthy"));
+            failed.completeExceptionally(new AIServiceException("Azure OpenAI service not healthy"));
             return failed;
         }
 
@@ -142,7 +222,7 @@ public class OpenAIService implements AIService {
     public CompletableFuture<String> classifyDataAsync(String value, String context) {
         if (!healthy) {
             CompletableFuture<String> failed = new CompletableFuture<>();
-            failed.completeExceptionally(new AIServiceException("OpenAI service not healthy"));
+            failed.completeExceptionally(new AIServiceException("Azure OpenAI service not healthy"));
             return failed;
         }
 
@@ -164,94 +244,19 @@ public class OpenAIService implements AIService {
     }
 
     @Override
-    public Map<String, String> sanitizeBatch(List<String> values, List<String> contexts) throws AIServiceException {
-        if (!healthy) {
-            throw new AIServiceException("OpenAI service not healthy");
-        }
-
-        if (values == null || values.isEmpty()) {
-            return new HashMap<>();
-        }
-
-        // Build batch prompt
-        StringBuilder prompt = new StringBuilder();
-        prompt.append("You are a data sanitization expert. Sanitize these sensitive values without revealing their type or content.\n");
-        prompt.append("Return ONLY a JSON object where each key is the original value and the value is the sanitized version.\n");
-        prompt.append("Use generic placeholders like '[REDACTED]', '[MASKED]', hash-like strings, etc.\n\n");
-
-        for (int i = 0; i < values.size(); i++) {
-            String context = (contexts != null && i < contexts.size()) ? contexts.get(i) : "unknown";
-            prompt.append(String.format("Field %d: %s\nValue %d: %s\n\n", i + 1, context, i + 1, values.get(i)));
-        }
-
-        prompt.append("Return format: {\"original_value1\": \"sanitized1\", \"original_value2\": \"sanitized2\", ...}");
-
-        String response = callOpenAI(prompt.toString(), "Batch sanitize", config.getTimeoutMs());
-
-        try {
-            // Parse JSON response
-            JsonObject json = new JsonParser().parse(response).getAsJsonObject();
-            Map<String, String> result = new HashMap<>();
-            for (Map.Entry<String, JsonElement> entry : json.entrySet()) {
-                result.put(entry.getKey(), entry.getValue().getAsString());
-            }
-            return result;
-        } catch (Exception e) {
-            throw new AIServiceException("Failed to parse batch sanitization response: " + e.getMessage(), e);
-        }
-    }
-
-    @Override
-    public Map<String, String> classifyDataBatch(List<String> values, List<String> contexts) throws AIServiceException {
-        if (!healthy) {
-            throw new AIServiceException("OpenAI service not healthy");
-        }
-
-        if (values == null || values.isEmpty()) {
-            return new HashMap<>();
-        }
-
-        // Build batch prompt
-        StringBuilder prompt = new StringBuilder();
-        prompt.append("Classify these data values as one of: 'pii' (personally identifiable), 'sensitive' (confidential), 'public' (safe), or 'unknown'.\n");
-        prompt.append("Return ONLY a JSON object where each key is the original value and the value is the classification.\n\n");
-
-        for (int i = 0; i < values.size(); i++) {
-            String context = (contexts != null && i < contexts.size()) ? contexts.get(i) : "unknown";
-            prompt.append(String.format("Field %d: %s\nValue %d: %s\n\n", i + 1, context, i + 1, values.get(i)));
-        }
-
-        prompt.append("Return format: {\"value1\": \"pii\", \"value2\": \"sensitive\", ...}");
-
-        String response = callOpenAI(prompt.toString(), "Batch classify", config.getTimeoutMs());
-
-        try {
-            // Parse JSON response
-            JsonObject json = new JsonParser().parse(response).getAsJsonObject();
-            Map<String, String> result = new HashMap<>();
-            for (Map.Entry<String, JsonElement> entry : json.entrySet()) {
-                result.put(entry.getKey(), entry.getValue().getAsString().toLowerCase().trim());
-            }
-            return result;
-        } catch (Exception e) {
-            throw new AIServiceException("Failed to parse batch classification response: " + e.getMessage(), e);
-        }
-    }
-
-    @Override
     public boolean isHealthy() {
         return healthy;
     }
 
     @Override
     public String getServiceName() {
-        return String.format("OpenAI %s (model: %s)", OPENAI_API_VERSION, config.getModel());
+        return String.format("Azure OpenAI (%s)", deploymentName);
     }
 
     /**
-     * Call OpenAI API with timeout protection.
+     * Call Azure OpenAI API with timeout protection.
      */
-    private String callOpenAI(String prompt, String taskName, long timeoutMs) throws AIServiceException {
+    private String callAzureOpenAI(String prompt, String taskName, long timeoutMs) throws AIServiceException {
         try {
             Future<String> future = executor.submit(() -> {
                 try {
@@ -276,24 +281,25 @@ public class OpenAIService implements AIService {
     }
 
     /**
-     * Make actual HTTP call to OpenAI API.
+     * Make actual HTTP call to Azure OpenAI API.
      */
     private String makeAPICall(String prompt) throws Exception {
-        URL url = new URL(OPENAI_API_URL);
+        String urlString = String.format("%s/openai/deployments/%s/chat/completions?api-version=%s",
+            azureEndpoint, deploymentName, apiVersion);
+        URL url = new URL(urlString);
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
 
         try {
             // Setup request
             conn.setRequestMethod("POST");
             conn.setRequestProperty("Content-Type", "application/json");
-            conn.setRequestProperty("Authorization", "Bearer " + config.getApiKey());
+            conn.setRequestProperty("api-key", config.getApiKey());
             conn.setDoOutput(true);
             conn.setConnectTimeout((int) config.getTimeoutMs());
             conn.setReadTimeout((int) config.getTimeoutMs());
 
-            // Build request body
+            // Build request body (same as OpenAI)
             JsonObject requestBody = new JsonObject();
-            requestBody.addProperty("model", config.getModel());
             requestBody.addProperty("temperature", config.getTemperature());
             requestBody.addProperty("max_tokens", config.getMaxTokens());
 
@@ -328,7 +334,7 @@ public class OpenAIService implements AIService {
     }
 
     /**
-     * Extract text content from OpenAI API response.
+     * Extract text content from Azure OpenAI API response (same as OpenAI).
      */
     @SuppressWarnings("deprecation")
     private String extractContent(String response) throws Exception {
@@ -364,29 +370,15 @@ public class OpenAIService implements AIService {
     }
 
     /**
-     * Check if OpenAI service is accessible.
+     * Check if Azure OpenAI service is accessible.
      */
     private boolean checkHealth() {
         try {
-            String result = callOpenAI("Reply 'OK'", "Health check", 5000);
+            String result = callAzureOpenAI("Reply 'OK'", "Health check", 5000);
             return result != null && !result.isEmpty();
         } catch (Exception e) {
-            System.err.println("OpenAI health check failed: " + e.getMessage());
+            System.err.println("Azure OpenAI health check failed: " + e.getMessage());
             return false;
-        }
-    }
-
-    /**
-     * Shutdown the executor.
-     */
-    public void shutdown() {
-        executor.shutdown();
-        try {
-            if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
-                executor.shutdownNow();
-            }
-        } catch (InterruptedException e) {
-            executor.shutdownNow();
         }
     }
 }

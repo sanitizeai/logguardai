@@ -8,8 +8,11 @@ import java.util.List;
 public class AIConfig {
     
     private String apiKey;
-    private String apiProvider;          // "openai", "anthropic", etc.
-    private String model;                 // "gpt-3.5-turbo", "gpt-4", etc.
+    private String apiProvider;          // "openai", "anthropic", "azure-openai"
+    private String model;                 // "gpt-3.5-turbo", "gpt-4", "claude-3-sonnet-20240229", etc.
+    private String azureEndpoint;         // Azure OpenAI endpoint URL
+    private String azureDeployment;       // Azure OpenAI deployment name
+    private String azureApiVersion;       // Azure OpenAI API version
     private int maxTokens;
     private double temperature;
     private long timeoutMs;
@@ -49,6 +52,30 @@ public class AIConfig {
 
     public void setModel(String model) {
         this.model = model;
+    }
+
+    public String getAzureEndpoint() {
+        return azureEndpoint;
+    }
+
+    public void setAzureEndpoint(String azureEndpoint) {
+        this.azureEndpoint = azureEndpoint;
+    }
+
+    public String getAzureDeployment() {
+        return azureDeployment;
+    }
+
+    public void setAzureDeployment(String azureDeployment) {
+        this.azureDeployment = azureDeployment;
+    }
+
+    public String getAzureApiVersion() {
+        return azureApiVersion;
+    }
+
+    public void setAzureApiVersion(String azureApiVersion) {
+        this.azureApiVersion = azureApiVersion;
     }
 
     public int getMaxTokens() {

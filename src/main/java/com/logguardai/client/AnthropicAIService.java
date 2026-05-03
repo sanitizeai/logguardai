@@ -13,21 +13,21 @@ import java.util.*;
 import java.util.concurrent.*;
 
 /**
- * OpenAI GPT-based AI service implementation.
- * 
- * Supports GPT-3.5-turbo and GPT-4 models with timeout protection.
+ * Anthropic Claude AI service implementation.
+ *
+ * Supports Claude models (claude-3-sonnet-20240229, claude-3-haiku-20240307, etc.)
  * Uses HTTP/JSON for direct API calls (no external dependencies).
  */
-public class OpenAIService implements AIService {
-    
-    private static final String OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
-    private static final String OPENAI_API_VERSION = "v1";
-    
+public class AnthropicAIService implements AIService {
+
+    private static final String ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
+    private static final String ANTHROPIC_API_VERSION = "2023-06-01";
+
     private final AIConfig config;
     private boolean healthy = false;
     private final ExecutorService executor = Executors.newFixedThreadPool(3);
 
-    public OpenAIService(AIConfig config) {
+    public AnthropicAIService(AIConfig config) {
         this.config = config;
         if (config.isConfigured()) {
             this.healthy = checkHealth();
@@ -37,7 +37,7 @@ public class OpenAIService implements AIService {
     @Override
     public String sanitize(String value, String context) throws AIServiceException {
         if (!healthy) {
-            throw new AIServiceException("OpenAI service not healthy");
+            throw new AIServiceException("Anthropic service not healthy");
         }
 
         String prompt = String.format(
@@ -47,14 +47,14 @@ public class OpenAIService implements AIService {
             context != null ? context : "unknown", value
         );
 
-        return callOpenAI(prompt, "Sanitize value", config.getTimeoutMs());
+        return callAnthropic(prompt, "Sanitize value", config.getTimeoutMs());
     }
 
     @Override
-    public String explainException(String exceptionType, String message, String stackTraceSnippet) 
+    public String explainException(String exceptionType, String message, String stackTraceSnippet)
             throws AIServiceException {
         if (!healthy) {
-            throw new AIServiceException("OpenAI service not healthy");
+            throw new AIServiceException("Anthropic service not healthy");
         }
 
         String prompt = String.format(
@@ -67,13 +67,13 @@ public class OpenAIService implements AIService {
             exceptionType, message, stackTraceSnippet
         );
 
-        return callOpenAI(prompt, "Explain exception", config.getTimeoutMs());
+        return callAnthropic(prompt, "Explain exception", config.getTimeoutMs());
     }
 
     @Override
     public String classifyData(String value, String context) throws AIServiceException {
         if (!healthy) {
-            throw new AIServiceException("OpenAI service not healthy");
+            throw new AIServiceException("Anthropic service not healthy");
         }
 
         String prompt = String.format(
@@ -83,15 +83,90 @@ public class OpenAIService implements AIService {
             context != null ? context : "unknown", value
         );
 
-        String result = callOpenAI(prompt, "Classify data", config.getTimeoutMs());
+        String result = callAnthropic(prompt, "Classify data", config.getTimeoutMs());
         return result.toLowerCase().trim();
+    }
+
+    @Override
+    public Map<String, String> sanitizeBatch(List<String> values, List<String> contexts) throws AIServiceException {
+        if (!healthy) {
+            throw new AIServiceException("Anthropic service not healthy");
+        }
+
+        if (values == null || values.isEmpty()) {
+            return new HashMap<>();
+        }
+
+        // Build batch prompt
+        StringBuilder prompt = new StringBuilder();
+        prompt.append("You are a data sanitization expert. Sanitize these sensitive values without revealing their type or content.\n");
+        prompt.append("Return ONLY a JSON object where each key is the original value and the value is the sanitized version.\n");
+        prompt.append("Use generic placeholders like '[REDACTED]', '[MASKED]', hash-like strings, etc.\n\n");
+
+        for (int i = 0; i < values.size(); i++) {
+            String context = (contexts != null && i < contexts.size()) ? contexts.get(i) : "unknown";
+            prompt.append(String.format("Field %d: %s\nValue %d: %s\n\n", i + 1, context, i + 1, values.get(i)));
+        }
+
+        prompt.append("Return format: {\"original_value1\": \"sanitized1\", \"original_value2\": \"sanitized2\", ...}");
+
+        String response = callAnthropic(prompt.toString(), "Batch sanitize", config.getTimeoutMs());
+
+        try {
+            // Parse JSON response
+            JsonObject json = new JsonParser().parse(response).getAsJsonObject();
+            Map<String, String> result = new HashMap<>();
+            for (Map.Entry<String, JsonElement> entry : json.entrySet()) {
+                result.put(entry.getKey(), entry.getValue().getAsString());
+            }
+            return result;
+        } catch (Exception e) {
+            throw new AIServiceException("Failed to parse batch sanitization response: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public Map<String, String> classifyDataBatch(List<String> values, List<String> contexts) throws AIServiceException {
+        if (!healthy) {
+            throw new AIServiceException("Anthropic service not healthy");
+        }
+
+        if (values == null || values.isEmpty()) {
+            return new HashMap<>();
+        }
+
+        // Build batch prompt
+        StringBuilder prompt = new StringBuilder();
+        prompt.append("Classify these data values as one of: 'pii' (personally identifiable), 'sensitive' (confidential), 'public' (safe), or 'unknown'.\n");
+        prompt.append("Return ONLY a JSON object where each key is the original value and the value is the classification.\n\n");
+
+        for (int i = 0; i < values.size(); i++) {
+            String context = (contexts != null && i < contexts.size()) ? contexts.get(i) : "unknown";
+            prompt.append(String.format("Field %d: %s\nValue %d: %s\n\n", i + 1, context, i + 1, values.get(i)));
+        }
+
+        prompt.append("Return format: {\"value1\": \"pii\", \"value2\": \"sensitive\", ...}");
+
+        String response = callAnthropic(prompt.toString(), "Batch classify", config.getTimeoutMs());
+
+        try {
+            // Parse JSON response
+            JsonObject json = new JsonParser().parse(response).getAsJsonObject();
+            Map<String, String> result = new HashMap<>();
+            for (Map.Entry<String, JsonElement> entry : json.entrySet()) {
+                result.put(entry.getKey(), entry.getValue().getAsString().toLowerCase().trim());
+            }
+            return result;
+        } catch (Exception e) {
+            throw new AIServiceException("Failed to parse batch classification response: " + e.getMessage(), e);
+        }
     }
 
     @Override
     public CompletableFuture<String> sanitizeAsync(String value, String context) {
         if (!healthy) {
             CompletableFuture<String> failed = new CompletableFuture<>();
-            failed.completeExceptionally(new AIServiceException("OpenAI service not healthy"));
+            failed.completeExceptionally(new AIServiceException("Anthropic service not healthy"));
             return failed;
         }
 
@@ -115,7 +190,7 @@ public class OpenAIService implements AIService {
     public CompletableFuture<String> explainExceptionAsync(String exceptionType, String message, String stackTraceSnippet) {
         if (!healthy) {
             CompletableFuture<String> failed = new CompletableFuture<>();
-            failed.completeExceptionally(new AIServiceException("OpenAI service not healthy"));
+            failed.completeExceptionally(new AIServiceException("Anthropic service not healthy"));
             return failed;
         }
 
@@ -142,7 +217,7 @@ public class OpenAIService implements AIService {
     public CompletableFuture<String> classifyDataAsync(String value, String context) {
         if (!healthy) {
             CompletableFuture<String> failed = new CompletableFuture<>();
-            failed.completeExceptionally(new AIServiceException("OpenAI service not healthy"));
+            failed.completeExceptionally(new AIServiceException("Anthropic service not healthy"));
             return failed;
         }
 
@@ -164,94 +239,19 @@ public class OpenAIService implements AIService {
     }
 
     @Override
-    public Map<String, String> sanitizeBatch(List<String> values, List<String> contexts) throws AIServiceException {
-        if (!healthy) {
-            throw new AIServiceException("OpenAI service not healthy");
-        }
-
-        if (values == null || values.isEmpty()) {
-            return new HashMap<>();
-        }
-
-        // Build batch prompt
-        StringBuilder prompt = new StringBuilder();
-        prompt.append("You are a data sanitization expert. Sanitize these sensitive values without revealing their type or content.\n");
-        prompt.append("Return ONLY a JSON object where each key is the original value and the value is the sanitized version.\n");
-        prompt.append("Use generic placeholders like '[REDACTED]', '[MASKED]', hash-like strings, etc.\n\n");
-
-        for (int i = 0; i < values.size(); i++) {
-            String context = (contexts != null && i < contexts.size()) ? contexts.get(i) : "unknown";
-            prompt.append(String.format("Field %d: %s\nValue %d: %s\n\n", i + 1, context, i + 1, values.get(i)));
-        }
-
-        prompt.append("Return format: {\"original_value1\": \"sanitized1\", \"original_value2\": \"sanitized2\", ...}");
-
-        String response = callOpenAI(prompt.toString(), "Batch sanitize", config.getTimeoutMs());
-
-        try {
-            // Parse JSON response
-            JsonObject json = new JsonParser().parse(response).getAsJsonObject();
-            Map<String, String> result = new HashMap<>();
-            for (Map.Entry<String, JsonElement> entry : json.entrySet()) {
-                result.put(entry.getKey(), entry.getValue().getAsString());
-            }
-            return result;
-        } catch (Exception e) {
-            throw new AIServiceException("Failed to parse batch sanitization response: " + e.getMessage(), e);
-        }
-    }
-
-    @Override
-    public Map<String, String> classifyDataBatch(List<String> values, List<String> contexts) throws AIServiceException {
-        if (!healthy) {
-            throw new AIServiceException("OpenAI service not healthy");
-        }
-
-        if (values == null || values.isEmpty()) {
-            return new HashMap<>();
-        }
-
-        // Build batch prompt
-        StringBuilder prompt = new StringBuilder();
-        prompt.append("Classify these data values as one of: 'pii' (personally identifiable), 'sensitive' (confidential), 'public' (safe), or 'unknown'.\n");
-        prompt.append("Return ONLY a JSON object where each key is the original value and the value is the classification.\n\n");
-
-        for (int i = 0; i < values.size(); i++) {
-            String context = (contexts != null && i < contexts.size()) ? contexts.get(i) : "unknown";
-            prompt.append(String.format("Field %d: %s\nValue %d: %s\n\n", i + 1, context, i + 1, values.get(i)));
-        }
-
-        prompt.append("Return format: {\"value1\": \"pii\", \"value2\": \"sensitive\", ...}");
-
-        String response = callOpenAI(prompt.toString(), "Batch classify", config.getTimeoutMs());
-
-        try {
-            // Parse JSON response
-            JsonObject json = new JsonParser().parse(response).getAsJsonObject();
-            Map<String, String> result = new HashMap<>();
-            for (Map.Entry<String, JsonElement> entry : json.entrySet()) {
-                result.put(entry.getKey(), entry.getValue().getAsString().toLowerCase().trim());
-            }
-            return result;
-        } catch (Exception e) {
-            throw new AIServiceException("Failed to parse batch classification response: " + e.getMessage(), e);
-        }
-    }
-
-    @Override
     public boolean isHealthy() {
         return healthy;
     }
 
     @Override
     public String getServiceName() {
-        return String.format("OpenAI %s (model: %s)", OPENAI_API_VERSION, config.getModel());
+        return String.format("Anthropic Claude (%s)", config.getModel());
     }
 
     /**
-     * Call OpenAI API with timeout protection.
+     * Call Anthropic API with timeout protection.
      */
-    private String callOpenAI(String prompt, String taskName, long timeoutMs) throws AIServiceException {
+    private String callAnthropic(String prompt, String taskName, long timeoutMs) throws AIServiceException {
         try {
             Future<String> future = executor.submit(() -> {
                 try {
@@ -276,25 +276,25 @@ public class OpenAIService implements AIService {
     }
 
     /**
-     * Make actual HTTP call to OpenAI API.
+     * Make actual HTTP call to Anthropic API.
      */
     private String makeAPICall(String prompt) throws Exception {
-        URL url = new URL(OPENAI_API_URL);
+        URL url = new URL(ANTHROPIC_API_URL);
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
 
         try {
             // Setup request
             conn.setRequestMethod("POST");
             conn.setRequestProperty("Content-Type", "application/json");
-            conn.setRequestProperty("Authorization", "Bearer " + config.getApiKey());
+            conn.setRequestProperty("x-api-key", config.getApiKey());
+            conn.setRequestProperty("anthropic-version", ANTHROPIC_API_VERSION);
             conn.setDoOutput(true);
             conn.setConnectTimeout((int) config.getTimeoutMs());
             conn.setReadTimeout((int) config.getTimeoutMs());
 
-            // Build request body
+            // Build request body for Anthropic Messages API
             JsonObject requestBody = new JsonObject();
             requestBody.addProperty("model", config.getModel());
-            requestBody.addProperty("temperature", config.getTemperature());
             requestBody.addProperty("max_tokens", config.getMaxTokens());
 
             JsonArray messages = new JsonArray();
@@ -328,20 +328,19 @@ public class OpenAIService implements AIService {
     }
 
     /**
-     * Extract text content from OpenAI API response.
+     * Extract text content from Anthropic API response.
      */
     @SuppressWarnings("deprecation")
     private String extractContent(String response) throws Exception {
         JsonObject json = new JsonParser().parse(response).getAsJsonObject();
-        JsonArray choices = json.getAsJsonArray("choices");
-        if (choices == null || choices.size() == 0) {
-            throw new Exception("No choices in response");
+        JsonArray content = json.getAsJsonArray("content");
+        if (content == null || content.size() == 0) {
+            throw new Exception("No content in response");
         }
 
-        JsonObject choice = choices.get(0).getAsJsonObject();
-        JsonObject message = choice.getAsJsonObject("message");
-        String content = message.get("content").getAsString();
-        return content.trim();
+        JsonObject contentObj = content.get(0).getAsJsonObject();
+        String text = contentObj.get("text").getAsString();
+        return text.trim();
     }
 
     /**
@@ -364,29 +363,15 @@ public class OpenAIService implements AIService {
     }
 
     /**
-     * Check if OpenAI service is accessible.
+     * Check if Anthropic service is accessible.
      */
     private boolean checkHealth() {
         try {
-            String result = callOpenAI("Reply 'OK'", "Health check", 5000);
+            String result = callAnthropic("Reply 'OK'", "Health check", 5000);
             return result != null && !result.isEmpty();
         } catch (Exception e) {
-            System.err.println("OpenAI health check failed: " + e.getMessage());
+            System.err.println("Anthropic health check failed: " + e.getMessage());
             return false;
-        }
-    }
-
-    /**
-     * Shutdown the executor.
-     */
-    public void shutdown() {
-        executor.shutdown();
-        try {
-            if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
-                executor.shutdownNow();
-            }
-        } catch (InterruptedException e) {
-            executor.shutdownNow();
         }
     }
 }

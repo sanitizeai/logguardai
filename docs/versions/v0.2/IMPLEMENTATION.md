@@ -388,10 +388,11 @@ public class MyAIService implements AIService {
 | Date | Version | Status |
 |------|---------|--------|
 | April 23, 2026 | v0.1.0 | Released |
-| April 23, 2026 | v0.2.0 | Released (Today!) |
-| Q2 2026 | v0.2.1 | Planned (Additional AI providers) |
-| Q3 2026 | v0.3.0 | Planned (Async, advanced sampling) |
-| Q4 2026 | v1.0.0 | Planned (Spring Boot integration) |
+| April 23, 2026 | v0.2.0 | Released |
+| May 01, 2026 | v0.3.0 | Released |
+| May 03, 2026 | v0.4.0 | Released (Today!) |
+| Q2 2026 | v0.5.0 | Planned (Advanced sampling, metrics) |
+| Q3 2026 | v1.0.0 | Planned (Enterprise features) |
 
 ---
 

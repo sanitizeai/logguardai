@@ -3,6 +3,8 @@ package com.logguardai.client;
 import com.logguardai.ai.AIService;
 import com.logguardai.ai.AIServiceException;
 
+import java.util.*;
+
 /**
  * No-op AIService stub implementation.
  * Used when AI is disabled or not properly configured.
@@ -40,6 +42,41 @@ public class NoOpAIService implements AIService {
             return "sensitive";
         }
         return "public";
+    }
+
+    @Override
+    public Map<String, String> sanitizeBatch(List<String> values, List<String> contexts) throws AIServiceException {
+        if (values == null || values.isEmpty()) {
+            return new HashMap<>();
+        }
+
+        Map<String, String> result = new HashMap<>();
+        for (String value : values) {
+            result.put(value, "[REDACTED]");
+        }
+        return result;
+    }
+
+    @Override
+    public Map<String, String> classifyDataBatch(List<String> values, List<String> contexts) throws AIServiceException {
+        if (values == null || values.isEmpty()) {
+            return new HashMap<>();
+        }
+
+        Map<String, String> result = new HashMap<>();
+        for (String value : values) {
+            if (value == null || value.isEmpty()) {
+                result.put(value, "unknown");
+            } else {
+                String lower = value.toLowerCase();
+                if (lower.matches(".*[a-f0-9]{32,}.*") || lower.matches(".*[a-z0-9+/=]{40,}.*")) {
+                    result.put(value, "sensitive");
+                } else {
+                    result.put(value, "public");
+                }
+            }
+        }
+        return result;
     }
 
     @Override

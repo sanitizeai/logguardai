@@ -20,7 +20,10 @@ import org.apache.logging.log4j.core.config.Node;
 import java.nio.charset.Charset;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * LogGuardLayout - Main Log4j2 plugin for sanitizing logs.
@@ -39,6 +42,8 @@ import java.util.concurrent.ThreadLocalRandom;
  * aiApiKey="${OPENAI_API_KEY}"
  * aiThreshold="5"
  * aiTimeoutMs="2000"
+ * aiAsyncWaitMs="100"
+ * batchSize="5"
  * samplingRate="0.1"/>
  */
 @Plugin(name = "LogGuardLayout", category = Node.CATEGORY, elementType = "layout", printObject = true)
@@ -54,16 +59,20 @@ public class LogGuardLayout extends AbstractStringLayout {
     private final AIService aiService;
     private final int aiThreshold;
     private final long aiTimeoutMs;
+    private final long aiAsyncWaitMs;
+    private final int batchSize;
     private final double samplingRate;
     private final List<String> safeKeyPatterns;
     private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
 
-    public LogGuardLayout(Charset charset, boolean aiEnabled, String aiProvider, String aiApiKey,
-            String aiModel, int aiThreshold, long aiTimeoutMs, double samplingRate, List<String> safeKeyPatterns) {
+    public LogGuardLayout(Charset charset, boolean aiEnabled, AIConfig aiConfig,
+            int aiThreshold, long aiAsyncWaitMs, int batchSize, double samplingRate, List<String> safeKeyPatterns) {
         super(charset);
         this.aiEnabled = aiEnabled;
         this.aiThreshold = aiThreshold;
-        this.aiTimeoutMs = aiTimeoutMs;
+        this.aiTimeoutMs = aiConfig != null ? aiConfig.getTimeoutMs() : 2000;
+        this.aiAsyncWaitMs = aiAsyncWaitMs;
+        this.batchSize = batchSize;
         this.samplingRate = samplingRate;
         this.safeKeyPatterns = safeKeyPatterns != null ? safeKeyPatterns : new ArrayList<>();
 
@@ -75,12 +84,7 @@ public class LogGuardLayout extends AbstractStringLayout {
         this.exceptionProcessor = new ExceptionProcessor();
 
         // Initialize AI service if enabled
-        if (aiEnabled && aiApiKey != null && !aiApiKey.isEmpty()) {
-            AIConfig aiConfig = new AIConfig();
-            aiConfig.setApiProvider(aiProvider != null ? aiProvider : "openai");
-            aiConfig.setApiKey(aiApiKey);
-            aiConfig.setModel(aiModel != null ? aiModel : "gpt-3.5-turbo");
-            aiConfig.setTimeoutMs(aiTimeoutMs);
+        if (aiEnabled && aiConfig != null && aiConfig.isConfigured()) {
             this.aiService = AIServiceFactory.createService(aiConfig);
         } else {
             this.aiService = AIServiceFactory.createService(null); // No-op service
@@ -135,27 +139,42 @@ public class LogGuardLayout extends AbstractStringLayout {
 
             // Step 3-4: Decide and sanitize
             String result = message;
+            
+            // Separate tokens by sanitization method
+            List<Token> ruleBasedTokens = new ArrayList<>();
+            List<Token> aiTokens = new ArrayList<>();
+            
             for (Token token : tokens) {
                 DecisionEngine.SanitizationAction action = decisionEngine.decideSanitization(token.getRiskScore());
-                String originalPair = token.getKey() + "=" + token.getValue();
-
+                
                 if (action == DecisionEngine.SanitizationAction.RULE_BASED_MASK) {
-                    // Apply rule-based masking
-                    String maskedPair = sanitizationEngine.buildMaskedPair(token.getKey(), token.getValue());
-                    result = result.replace(originalPair, maskedPair);
-                } else if (action == DecisionEngine.SanitizationAction.AI_SANITIZE && aiEnabled) {
-                    // Use AI sanitization if enabled and sampled
-                    if (shouldSampleForAI()) {
-                        try {
-                            String aiSanitized = aiService.sanitize(token.getValue(), token.getKey());
-                            result = result.replace(token.getValue(), aiSanitized);
-                        } catch (Exception e) {
-                            // Fallback to rule-based masking on AI error
-                            String maskedPair = sanitizationEngine.buildMaskedPair(token.getKey(), token.getValue());
-                            result = result.replace(originalPair, maskedPair);
-                        }
-                    } else {
-                        // Not sampled, use rule-based masking
+                    ruleBasedTokens.add(token);
+                } else if (action == DecisionEngine.SanitizationAction.AI_SANITIZE && aiEnabled && shouldSampleForAI()) {
+                    aiTokens.add(token);
+                } else {
+                    // Default to rule-based masking for any other case
+                    ruleBasedTokens.add(token);
+                }
+            }
+            
+            // Apply rule-based masking
+            for (Token token : ruleBasedTokens) {
+                String originalPair = token.getKey() + "=" + token.getValue();
+                String maskedPair = sanitizationEngine.buildMaskedPair(token.getKey(), token.getValue());
+                result = result.replace(originalPair, maskedPair);
+            }
+            
+            // Apply AI sanitization in batches
+            if (!aiTokens.isEmpty()) {
+                try {
+                    Map<String, String> aiResults = processTokensWithAI(aiTokens);
+                    for (Map.Entry<String, String> entry : aiResults.entrySet()) {
+                        result = result.replace(entry.getKey(), entry.getValue());
+                    }
+                } catch (Exception e) {
+                    // Fallback: apply rule-based masking to AI tokens on error
+                    for (Token token : aiTokens) {
+                        String originalPair = token.getKey() + "=" + token.getValue();
                         String maskedPair = sanitizationEngine.buildMaskedPair(token.getKey(), token.getValue());
                         result = result.replace(originalPair, maskedPair);
                     }
@@ -208,6 +227,57 @@ public class LogGuardLayout extends AbstractStringLayout {
     }
 
     /**
+     * Process tokens requiring AI sanitization in batches.
+     */
+    private Map<String, String> processTokensWithAI(List<Token> aiTokens) throws Exception {
+        Map<String, String> results = new HashMap<>();
+        
+        // Process tokens in batches
+        for (int i = 0; i < aiTokens.size(); i += batchSize) {
+            int endIndex = Math.min(i + batchSize, aiTokens.size());
+            List<Token> batch = aiTokens.subList(i, endIndex);
+            
+            // Extract values and contexts for this batch
+            List<String> values = new ArrayList<>();
+            List<String> contexts = new ArrayList<>();
+            for (Token token : batch) {
+                values.add(token.getValue());
+                contexts.add(token.getKey());
+            }
+            
+            try {
+                // Call batch AI sanitization
+                java.util.concurrent.CompletableFuture<Map<String, String>> future = aiService.sanitizeBatchAsync(values, contexts);
+                Map<String, String> batchResults = future.get(Math.max(0, Math.min(aiAsyncWaitMs, aiTimeoutMs)), TimeUnit.MILLISECONDS);
+                
+                // Map results back to original values
+                for (Token token : batch) {
+                    String sanitized = batchResults.get(token.getValue());
+                    if (sanitized != null) {
+                        results.put(token.getValue(), sanitized);
+                    } else {
+                        // Fallback to rule-based masking if AI didn't return this value
+                        results.put(token.getValue(), sanitizationEngine.maskValue(token.getValue()));
+                    }
+                }
+                
+            } catch (TimeoutException e) {
+                // Batch timeout - fallback to rule-based masking for this batch
+                for (Token token : batch) {
+                    results.put(token.getValue(), sanitizationEngine.maskValue(token.getValue()));
+                }
+            } catch (InterruptedException | ExecutionException e) {
+                // Batch error - fallback to rule-based masking for this batch
+                for (Token token : batch) {
+                    results.put(token.getValue(), sanitizationEngine.maskValue(token.getValue()));
+                }
+            }
+        }
+        
+        return results;
+    }
+
+    /**
      * Determine if this call should use AI (based on sampling rate).
      */
     private boolean shouldSampleForAI() {
@@ -242,8 +312,13 @@ public class LogGuardLayout extends AbstractStringLayout {
             @PluginAttribute(value = "aiProvider", defaultString = "openai") String aiProvider,
             @PluginAttribute(value = "aiApiKey", defaultString = "") String aiApiKey,
             @PluginAttribute(value = "aiModel", defaultString = "gpt-3.5-turbo") String aiModel,
+            @PluginAttribute(value = "azureEndpoint", defaultString = "") String azureEndpoint,
+            @PluginAttribute(value = "azureDeployment", defaultString = "") String azureDeployment,
+            @PluginAttribute(value = "azureApiVersion", defaultString = "2023-12-01") String azureApiVersion,
             @PluginAttribute(value = "aiThreshold", defaultString = "5") int aiThreshold,
             @PluginAttribute(value = "aiTimeoutMs", defaultString = "2000") long aiTimeoutMs,
+            @PluginAttribute(value = "aiAsyncWaitMs", defaultString = "100") long aiAsyncWaitMs,
+            @PluginAttribute(value = "batchSize", defaultString = "5") int batchSize,
             @PluginAttribute(value = "samplingRate", defaultString = "0.05") double samplingRate,
             @PluginAttribute(value = "safeKeyPatterns", defaultString = "") String safeKeyPatternsStr) {
 
@@ -256,8 +331,32 @@ public class LogGuardLayout extends AbstractStringLayout {
             }
         }
 
-        return new LogGuardLayout(charset, aiEnabled, aiProvider, aiApiKey, aiModel,
-                aiThreshold, aiTimeoutMs, samplingRate, safeKeyPatterns);
+        // Create AI config with provider-specific settings
+        AIConfig aiConfig = null;
+        if (aiEnabled && aiApiKey != null && !aiApiKey.isEmpty()) {
+            aiConfig = new AIConfig();
+            aiConfig.setApiProvider(aiProvider);
+            aiConfig.setApiKey(aiApiKey);
+            aiConfig.setModel(aiModel);
+            aiConfig.setTimeoutMs(aiTimeoutMs);
+
+            // Set Azure-specific config if using Azure provider
+            if ("azure-openai".equalsIgnoreCase(aiProvider)) {
+                if (azureEndpoint != null && !azureEndpoint.isEmpty()) {
+                    aiConfig.setAzureEndpoint(azureEndpoint);
+                }
+                if (azureDeployment != null && !azureDeployment.isEmpty()) {
+                    aiConfig.setAzureDeployment(azureDeployment);
+                } else {
+                    // Default to model name if not specified
+                    aiConfig.setAzureDeployment(aiModel);
+                }
+                aiConfig.setAzureApiVersion(azureApiVersion);
+            }
+        }
+
+        return new LogGuardLayout(charset, aiEnabled, aiConfig,
+                aiThreshold, aiAsyncWaitMs, batchSize, samplingRate, safeKeyPatterns);
     }
 
     @Override

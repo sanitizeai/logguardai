@@ -4,7 +4,7 @@
   <groupId>com.logguardai</groupId>
   <artifactId>logguardai</artifactId>
   <name>LogGuardAI</name>
-  <version>0.3.0</version>
+  <version>0.4.0</version>
   <description>Context-aware Log4j2 extension for sensitive data sanitization. Detects and masks sensitive information using intelligent heuristics without breaking logging.</description>
   <url>https://github.com/sanitizeai/logguardai</url>
   <issueManagement>

@@ -27,9 +27,10 @@ All defaults applied.
 
 ---
 
-### Full Configuration (v0.2+)
+### Full Configuration (v0.3+)
 
 ```xml
+<!-- OpenAI -->
 <LogGuardLayout
     charset="UTF-8"
     aiEnabled="true"
@@ -38,7 +39,35 @@ All defaults applied.
     aiModel="gpt-3.5-turbo"
     aiThreshold="5"
     aiTimeoutMs="2000"
-    samplingRate="0.1"/>
+    samplingRate="0.1"
+    batchSize="5"/>
+
+<!-- Anthropic Claude -->
+<LogGuardLayout
+    charset="UTF-8"
+    aiEnabled="true"
+    aiProvider="anthropic"
+    aiApiKey="${ANTHROPIC_API_KEY}"
+    aiModel="claude-3-sonnet-20240229"
+    aiThreshold="5"
+    aiTimeoutMs="2000"
+    samplingRate="0.1"
+    batchSize="5"/>
+
+<!-- Azure OpenAI -->
+<LogGuardLayout
+    charset="UTF-8"
+    aiEnabled="true"
+    aiProvider="azure-openai"
+    aiApiKey="${AZURE_OPENAI_API_KEY}"
+    aiModel="gpt-35-turbo"
+    azureEndpoint="https://your-resource.openai.azure.com"
+    azureDeployment="gpt-35-turbo-deployment"
+    azureApiVersion="2023-12-01"
+    aiThreshold="5"
+    aiTimeoutMs="2000"
+    samplingRate="0.1"
+    batchSize="5"/>
 ```
 
 ---
@@ -65,9 +94,10 @@ All defaults applied.
 #### `aiProvider`
 - **Type:** String
 - **Default:** `openai`
-- **Options:** `openai` (more providers coming)
+- **Options:** `openai`, `anthropic`, `azure-openai`
 - **Purpose:** Which AI provider to use
 - **Example:** `aiProvider="openai"`
+- **Note:** Each provider has different model names and configuration requirements
 
 #### `aiApiKey`
 - **Type:** String
@@ -79,10 +109,13 @@ All defaults applied.
 #### `aiModel`
 - **Type:** String
 - **Default:** `gpt-3.5-turbo`
-- **Options:** `gpt-3.5-turbo`, `gpt-4`
+- **Options:** 
+  - **OpenAI:** `gpt-3.5-turbo`, `gpt-4`, `gpt-4-turbo`
+  - **Anthropic:** `claude-3-haiku-20240307`, `claude-3-sonnet-20240229`, `claude-3-opus-20240229`
+  - **Azure OpenAI:** `gpt-35-turbo`, `gpt-4`, `gpt-4-turbo` (deployment names)
 - **Purpose:** Which AI model to use
-- **Example:** `aiModel="gpt-3.5-turbo"`
-- **Cost Note:** GPT-4 is more expensive
+- **Example:** `aiModel="gpt-3.5-turbo"` (OpenAI), `aiModel="claude-3-sonnet-20240229"` (Anthropic)
+- **Cost Note:** GPT-4 and Claude Opus are more expensive
 
 #### `aiThreshold`
 - **Type:** Integer
@@ -100,6 +133,27 @@ All defaults applied.
 - **Example:** `aiTimeoutMs="2000"`
 - **Note:** Prevents hanging on slow APIs
 
+#### `azureEndpoint` (Azure OpenAI only)
+- **Type:** String
+- **Default:** (none)
+- **Purpose:** Azure OpenAI resource endpoint URL
+- **Example:** `azureEndpoint="https://your-resource.openai.azure.com"`
+- **Required:** When `aiProvider="azure-openai"`
+
+#### `azureDeployment` (Azure OpenAI only)
+- **Type:** String
+- **Default:** (none)
+- **Purpose:** Azure OpenAI deployment name
+- **Example:** `azureDeployment="gpt-35-turbo-deployment"`
+- **Required:** When `aiProvider="azure-openai"`
+
+#### `azureApiVersion` (Azure OpenAI only)
+- **Type:** String
+- **Default:** `2023-12-01`
+- **Purpose:** Azure OpenAI API version
+- **Example:** `azureApiVersion="2023-12-01"`
+- **Optional:** When `aiProvider="azure-openai"`
+
 #### `samplingRate`
 - **Type:** Double
 - **Default:** `1.0` (100%)
@@ -109,6 +163,15 @@ All defaults applied.
 - **Cost Optimization:** Lower = cheaper
 - **Formula:** `cost = 95 * samplingRate` (approx, per 10M logs)
 
+#### `batchSize` (v0.3+)
+- **Type:** Integer
+- **Default:** `5`
+- **Range:** 1-50
+- **Purpose:** Number of sensitive values to process together in batch AI calls
+- **Example:** `batchSize="5"`
+- **Performance:** Higher values = fewer API calls but larger payloads
+- **Optimization:** Balance between API efficiency and response times
+
 ---
 
 ## 🎯 Configuration Profiles
@@ -116,6 +179,7 @@ All defaults applied.
 ### Development (AI Testing)
 
 ```xml
+<!-- OpenAI -->
 <LogGuardLayout
     aiEnabled="true"
     aiProvider="openai"
@@ -123,20 +187,47 @@ All defaults applied.
     aiModel="gpt-3.5-turbo"
     aiThreshold="5"
     aiTimeoutMs="1000"
-    samplingRate="0.05"/>
+    samplingRate="0.05"
+    batchSize="3"/>
+
+<!-- Anthropic Claude -->
+<LogGuardLayout
+    aiEnabled="true"
+    aiProvider="anthropic"
+    aiApiKey="${ANTHROPIC_API_KEY}"
+    aiModel="claude-3-haiku-20240307"
+    aiThreshold="5"
+    aiTimeoutMs="1000"
+    samplingRate="0.05"
+    batchSize="3"/>
+
+<!-- Azure OpenAI -->
+<LogGuardLayout
+    aiEnabled="true"
+    aiProvider="azure-openai"
+    aiApiKey="${AZURE_OPENAI_API_KEY}"
+    aiModel="gpt-35-turbo"
+    azureEndpoint="https://your-resource.openai.azure.com"
+    azureDeployment="gpt-35-turbo-deployment"
+    azureApiVersion="2023-12-01"
+    aiThreshold="5"
+    aiTimeoutMs="1000"
+    samplingRate="0.05"
+    batchSize="3"/>
 ```
 
 **Characteristics:**
 - AI enabled for experimentation
 - 5% sampling (low cost)
 - 1-second timeout (fast feedback)
-- GPT-3.5 (cheaper model)
+- GPT-3.5/OpenAI, Claude-3-Haiku/Anthropic, or GPT-3.5-Turbo/Azure (cheaper models)
 
 ---
 
 ### Production (Balanced)
 
 ```xml
+<!-- OpenAI -->
 <LogGuardLayout
     aiEnabled="true"
     aiProvider="openai"
@@ -144,20 +235,47 @@ All defaults applied.
     aiModel="gpt-3.5-turbo"
     aiThreshold="5"
     aiTimeoutMs="2000"
-    samplingRate="0.1"/>
+    samplingRate="0.1"
+    batchSize="5"/>
+
+<!-- Anthropic Claude -->
+<LogGuardLayout
+    aiEnabled="true"
+    aiProvider="anthropic"
+    aiApiKey="${ANTHROPIC_API_KEY}"
+    aiModel="claude-3-sonnet-20240229"
+    aiThreshold="5"
+    aiTimeoutMs="2000"
+    samplingRate="0.1"
+    batchSize="5"/>
+
+<!-- Azure OpenAI -->
+<LogGuardLayout
+    aiEnabled="true"
+    aiProvider="azure-openai"
+    aiApiKey="${AZURE_OPENAI_API_KEY}"
+    aiModel="gpt-35-turbo"
+    azureEndpoint="https://your-resource.openai.azure.com"
+    azureDeployment="gpt-35-turbo-deployment"
+    azureApiVersion="2023-12-01"
+    aiThreshold="5"
+    aiTimeoutMs="2000"
+    samplingRate="0.1"
+    batchSize="5"/>
 ```
 
 **Characteristics:**
 - AI enabled for high-risk logs
 - 10% sampling (reasonable cost)
 - 2-second timeout (reliability)
-- GPT-3.5 (good balance)
+- GPT-3.5/OpenAI, Claude-3-Sonnet/Anthropic, or GPT-3.5-Turbo/Azure (good balance)
 
 ---
 
 ### High-Security (Premium)
 
 ```xml
+<!-- OpenAI -->
 <LogGuardLayout
     aiEnabled="true"
     aiProvider="openai"
@@ -165,14 +283,40 @@ All defaults applied.
     aiModel="gpt-4"
     aiThreshold="3"
     aiTimeoutMs="3000"
-    samplingRate="1.0"/>
+    samplingRate="1.0"
+    batchSize="10"/>
+
+<!-- Anthropic Claude -->
+<LogGuardLayout
+    aiEnabled="true"
+    aiProvider="anthropic"
+    aiApiKey="${ANTHROPIC_API_KEY}"
+    aiModel="claude-3-sonnet-20240229"
+    aiThreshold="3"
+    aiTimeoutMs="3000"
+    samplingRate="1.0"
+    batchSize="10"/>
+
+<!-- Azure OpenAI -->
+<LogGuardLayout
+    aiEnabled="true"
+    aiProvider="azure-openai"
+    aiApiKey="${AZURE_OPENAI_API_KEY}"
+    aiModel="gpt-4"
+    azureEndpoint="https://your-resource.openai.azure.com"
+    azureDeployment="gpt-4-deployment"
+    azureApiVersion="2023-12-01"
+    aiThreshold="3"
+    aiTimeoutMs="3000"
+    samplingRate="1.0"
+    batchSize="10"/>
 ```
 
 **Characteristics:**
 - All logs get AI analysis
 - No sampling (highest security)
-- 3-second timeout (wait for GPT-4)
-- GPT-4 (most capable model)
+- 3-second timeout (wait for GPT-4/Claude)
+- GPT-4/OpenAI, Claude-3-Sonnet/Anthropic, or GPT-4/Azure (most capable models)
 - **Cost:** ~$95/month for 10M logs
 
 ---
