@@ -1,5 +1,7 @@
 package com.logguardai.ai;
 
+import java.util.List;
+
 /**
  * Configuration for AI service integration.
  */
@@ -13,6 +15,7 @@ public class AIConfig {
     private long timeoutMs;
     private boolean retryOnTimeout;
     private int maxRetries;
+    private List<String> safeKeyPatterns; // Regex patterns for keys that should not be sanitized
 
     public AIConfig() {
         this.apiProvider = "openai";
@@ -86,6 +89,14 @@ public class AIConfig {
 
     public void setMaxRetries(int maxRetries) {
         this.maxRetries = maxRetries;
+    }
+
+    public List<String> getSafeKeyPatterns() {
+        return safeKeyPatterns;
+    }
+
+    public void setSafeKeyPatterns(List<String> safeKeyPatterns) {
+        this.safeKeyPatterns = safeKeyPatterns;
     }
 
     public boolean isConfigured() {

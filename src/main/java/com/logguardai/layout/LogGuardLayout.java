@@ -55,19 +55,21 @@ public class LogGuardLayout extends AbstractStringLayout {
     private final int aiThreshold;
     private final long aiTimeoutMs;
     private final double samplingRate;
+    private final List<String> safeKeyPatterns;
     private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
 
     public LogGuardLayout(Charset charset, boolean aiEnabled, String aiProvider, String aiApiKey,
-            String aiModel, int aiThreshold, long aiTimeoutMs, double samplingRate) {
+            String aiModel, int aiThreshold, long aiTimeoutMs, double samplingRate, List<String> safeKeyPatterns) {
         super(charset);
         this.aiEnabled = aiEnabled;
         this.aiThreshold = aiThreshold;
         this.aiTimeoutMs = aiTimeoutMs;
         this.samplingRate = samplingRate;
+        this.safeKeyPatterns = safeKeyPatterns != null ? safeKeyPatterns : new ArrayList<>();
 
         // Initialize components
         this.tokenizer = new LogTokenizer();
-        this.riskScoringEngine = new RiskScoringEngine();
+        this.riskScoringEngine = new RiskScoringEngine(safeKeyPatterns);
         this.decisionEngine = new DecisionEngine();
         this.sanitizationEngine = new SanitizationEngine();
         this.exceptionProcessor = new ExceptionProcessor();
@@ -228,6 +230,10 @@ public class LogGuardLayout extends AbstractStringLayout {
     /**
      * Factory method for Log4j2 plugin creation.
      * Supports both v0.1 (rule-based only) and v0.2 (with AI) configurations.
+     * 
+     * Attributes:
+     * - safeKeyPatterns: CSV of regex patterns for keys that should NOT be sanitized
+     *   Example: ".*correlation.*,x-.*-id,trace.*"
      */
     @PluginFactory
     public static LogGuardLayout createLayout(
@@ -238,10 +244,20 @@ public class LogGuardLayout extends AbstractStringLayout {
             @PluginAttribute(value = "aiModel", defaultString = "gpt-3.5-turbo") String aiModel,
             @PluginAttribute(value = "aiThreshold", defaultString = "5") int aiThreshold,
             @PluginAttribute(value = "aiTimeoutMs", defaultString = "2000") long aiTimeoutMs,
-            @PluginAttribute(value = "samplingRate", defaultString = "0.05") double samplingRate) {
+            @PluginAttribute(value = "samplingRate", defaultString = "0.05") double samplingRate,
+            @PluginAttribute(value = "safeKeyPatterns", defaultString = "") String safeKeyPatternsStr) {
+
+        // Parse safe key patterns from CSV string
+        List<String> safeKeyPatterns = new ArrayList<>();
+        if (safeKeyPatternsStr != null && !safeKeyPatternsStr.isEmpty()) {
+            String[] patterns = safeKeyPatternsStr.split(",");
+            for (String pattern : patterns) {
+                safeKeyPatterns.add(pattern.trim());
+            }
+        }
 
         return new LogGuardLayout(charset, aiEnabled, aiProvider, aiApiKey, aiModel,
-                aiThreshold, aiTimeoutMs, samplingRate);
+                aiThreshold, aiTimeoutMs, samplingRate, safeKeyPatterns);
     }
 
     @Override

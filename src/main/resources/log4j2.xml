@@ -13,7 +13,8 @@
                 aiEnabled="false"
                 aiThreshold="5"
                 aiTimeoutMs="150"
-                samplingRate="0.05"/>
+                samplingRate="0.05"
+                safeKeyPatterns=".*correlation.*,x-.*-id,.*trace.*,.*span.*"/>
         </Console>
 
         <!-- File Appender with LogGuardLayout -->
@@ -26,7 +27,8 @@
                 aiEnabled="false"
                 aiThreshold="5"
                 aiTimeoutMs="150"
-                samplingRate="0.05"/>
+                samplingRate="0.05"
+                safeKeyPatterns=".*correlation.*,x-.*-id,.*trace.*,.*span.*"/>
             <Policies>
                 <TimeBasedTriggeringPolicy interval="1" modulate="true"/>
                 <SizeBasedTriggeringPolicy size="100MB"/>

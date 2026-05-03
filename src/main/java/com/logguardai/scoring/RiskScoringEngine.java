@@ -11,6 +11,8 @@ import java.util.regex.Pattern;
  * Scoring Logic:
  * - Sensitive keywords in key: +2-3
  * - Value characteristics (length, entropy, patterns): +1-3
+ * - Safe key patterns: 0 (whitelisted keys, e.g., correlationId, traceId)
+ * - UUID values: 0 (standard UUIDs are typically identifiers, not secrets)
  * 
  * Total Score:
  * 0-2: Low risk (no action)
@@ -19,6 +21,12 @@ import java.util.regex.Pattern;
  */
 public class RiskScoringEngine {
     
+    // High-risk sensitive keywords that should strongly increase risk.
+    private static final Set<String> HIGH_RISK_KEYWORDS = new HashSet<>(Arrays.asList(
+        "password", "passwd", "pwd", "secret", "apikey", "api_key",
+        "token", "bearer", "authorization", "credential", "credentials"
+    ));
+
     // Sensitive keyword variations
     private static final Set<String> SENSITIVE_KEYWORDS = new HashSet<>(Arrays.asList(
         "id", "token", "password", "passwd", "pwd", "secret", "auth",
@@ -33,13 +41,64 @@ public class RiskScoringEngine {
     private static final Pattern BASE64_PATTERN = Pattern.compile("^[A-Za-z0-9+/]+=*$");
     private static final Pattern NUMERIC_ONLY_PATTERN = Pattern.compile("^\\d{8,}$");
     private static final Pattern HEX_PATTERN = Pattern.compile("^[0-9a-fA-F]{16,}$");
+    // RFC 4122 UUID format: 550e8400-e29b-41d4-a716-446655440000
+    private static final Pattern UUID_PATTERN = Pattern.compile("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$");
+    
+    // Safe key patterns (compiled from user config or defaults)
+    private final List<Pattern> safeKeyPatterns;
+
+    /**
+     * Default constructor with no safe key patterns.
+     */
+    public RiskScoringEngine() {
+        this.safeKeyPatterns = new ArrayList<>();
+    }
+
+    /**
+     * Constructor with custom safe key patterns.
+     * @param safeKeyPatterns List of regex patterns for safe keys (e.g., ".*correlation.*", "x-.*-id")
+     */
+    public RiskScoringEngine(List<String> safeKeyPatterns) {
+        this.safeKeyPatterns = new ArrayList<>();
+        if (safeKeyPatterns != null) {
+            for (String pattern : safeKeyPatterns) {
+                try {
+                    this.safeKeyPatterns.add(Pattern.compile(pattern, Pattern.CASE_INSENSITIVE));
+                } catch (Exception e) {
+                    // Log warning but don't fail
+                    System.err.println("Warning: Invalid safe key pattern '" + pattern + "': " + e.getMessage());
+                }
+            }
+        }
+    }
 
     /**
      * Score a single token and update its risk score.
+     * Short-circuits for UUIDs (always safe) and safe key patterns.
      */
     public void scoreToken(Token token) {
-        int keyScore = scoreKey(token.getKey());
-        int valueScore = scoreValue(token.getValue());
+        String value = token.getValue();
+        String key = token.getKey();
+        
+        // UUID values are always safe (intrinsically safe identifiers), regardless of key
+        if (isUUID(value)) {
+            token.setRiskScore(0);
+            return;
+        }
+        
+        // Check if key matches any safe pattern - if so, entire token is safe
+        if (key != null && !key.isEmpty()) {
+            String lowerKey = key.toLowerCase();
+            for (Pattern safePattern : safeKeyPatterns) {
+                if (safePattern.matcher(lowerKey).matches()) {
+                    token.setRiskScore(0);
+                    return;  // Safe key pattern, entire token is safe
+                }
+            }
+        }
+        
+        int keyScore = scoreKey(key);
+        int valueScore = scoreValue(value);
         int totalScore = keyScore + valueScore;
         token.setRiskScore(totalScore);
     }
@@ -55,6 +114,7 @@ public class RiskScoringEngine {
 
     /**
      * Score the key part of a token.
+     * Returns 0 if key matches a safe pattern (e.g., correlationId, traceId).
      */
     private int scoreKey(String key) {
         if (key == null || key.isEmpty()) {
@@ -62,6 +122,21 @@ public class RiskScoringEngine {
         }
 
         String lowerKey = key.toLowerCase();
+        
+        // Check if key matches any safe pattern first
+        for (Pattern safePattern : safeKeyPatterns) {
+            if (safePattern.matcher(lowerKey).matches()) {
+                return 0;  // Safe key, no risk
+            }
+        }
+        
+        // High-risk keys should score more aggressively for shorter secret values.
+        for (String keyword : HIGH_RISK_KEYWORDS) {
+            if (lowerKey.contains(keyword)) {
+                return 3;
+            }
+        }
+
         int score = 0;
 
         // Check for sensitive keywords
@@ -77,10 +152,16 @@ public class RiskScoringEngine {
 
     /**
      * Score the value part of a token based on characteristics.
+     * Returns 0 immediately if value is a standard UUID (safe identifier).
      */
     private int scoreValue(String value) {
         if (value == null || value.isEmpty()) {
             return 0;
+        }
+
+        // UUID format (RFC 4122) is intrinsically safe - it's a standard identifier
+        if (isUUID(value)) {
+            return 0;  // UUIDs are safe by default
         }
 
         int score = 0;
@@ -116,6 +197,14 @@ public class RiskScoringEngine {
         }
 
         return score;
+    }
+
+    /**
+     * Detect if value is a standard UUID (RFC 4122 format).
+     * Format: 550e8400-e29b-41d4-a716-446655440000
+     */
+    private boolean isUUID(String value) {
+        return UUID_PATTERN.matcher(value).matches();
     }
 
     /**

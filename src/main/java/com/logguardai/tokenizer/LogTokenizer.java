@@ -15,7 +15,9 @@ import java.util.regex.Pattern;
  * - Query string format
  */
 public class LogTokenizer {
-    private static final Pattern KEY_VALUE_PATTERN = Pattern.compile("(\\w+)=([^\\s,]+)");
+    // Pattern to match key=value pairs, excluding common closing punctuation
+    // Matches: key=value where value stops at whitespace, comma, or closing brackets/braces
+    private static final Pattern KEY_VALUE_PATTERN = Pattern.compile("(\\w+)=([^\\s,\\]\\)\\}]+)");
     private static final JsonParser jsonParser = new JsonParser();
 
     /**
@@ -65,6 +67,7 @@ public class LogTokenizer {
     /**
      * Parse key=value pairs from log message.
      * Examples: "userId=12345 token=abc123 name=john"
+     * Also handles bracketed format: "[key1=value1, key2=value2]"
      */
     private List<Token> parseKeyValuePairs(String logMessage) {
         List<Token> tokens = new ArrayList<>();
@@ -73,7 +76,7 @@ public class LogTokenizer {
         while (matcher.find()) {
             String key = matcher.group(1);
             String value = matcher.group(2);
-            // Remove trailing punctuation
+            // Remove any remaining trailing punctuation like commas or semicolons
             value = value.replaceAll("[,;:]+$", "");
             tokens.add(new Token(key, value));
         }
