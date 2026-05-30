@@ -8,9 +8,61 @@ All notable changes to LogGuardAI are documented here.
 
 ## Versions
 
+### v0.5.0 — Pattern-Based Metrics System
+**Released:** May 27, 2026
+**Status:** ✅ Latest Stable
+**Type:** Feature Release
+
+#### ✨ New Features
+- 📊 **Pattern-Based Metrics** — Define custom regex patterns to extract metrics directly from logs
+- 🎯 **User-Defined Patterns** — Create metrics for HTTP requests, FTP transfers, database queries, etc.
+- 💾 **Append-Only File** — Metrics stored in Prometheus text format with cumulative history
+- ⚙️ **Periodic Flushing** — Configurable flush interval (default: 60 seconds)
+- 🔐 **Cardinality Protection** — Configurable limits prevent unbounded metric combinations (default: 10,000)
+- 🔌 **Zero Dependencies** — No external monitoring infrastructure required
+- 🧵 **Thread-Safe** — Lock-protected patterns, atomic counters, safe concurrent access
+- 📝 **Comprehensive Configuration** — XML-based pattern definitions via Log4j2 plugin attributes
+
+#### 📈 Capabilities
+- **Multi-Protocol Support** — Track metrics for HTTP, FTP, SFTP, database operations, etc.
+- **Label-Based Aggregation** — Extract multiple fields per log entry (method, endpoint, status, etc.)
+- **Prometheus Format** — Compatible with Prometheus scraping and ELK stack
+- **Memory Efficient** — In-memory aggregation with configurable cardinality limits
+- **Low Overhead** — Regex matching ~0.1ms per pattern, periodic flush minimizes I/O
+
+#### 🔧 Configuration Example
+```xml
+<LogGuardLayout 
+    extractMetrics="true"
+    metricsFilePath="logs/metrics.txt"
+    metricsFlushIntervalMs="60000"
+    metricsMaxCardinality="10000"
+    metricsPatterns="http_req|(GET|POST|DELETE) ([/\w/]+) (\d{3})|http_requests_total|method,endpoint,status"/>
+```
+
+#### 📦 Test Coverage
+- 11 new unit tests for metrics components
+- 5 new integration tests with LogGuardLayout
+- 95 total tests passing (100% pass rate)
+
+#### 📚 Documentation
+- [Metrics Configuration Guide](docs/guides/metrics-configuration.md)
+- Real-world examples: HTTP, FTP, SFTP, E-commerce, Database patterns
+- Cardinality management best practices
+- Integration with Prometheus and ELK stack
+
+#### ⚙️ Implementation Details
+- **MetricsPattern.java** — 105 lines, regex-based extraction with Prometheus label building
+- **MetricsRegistry.java** — 215 lines, thread-safe in-memory aggregation with cardinality tracking
+- **MetricsFileWriter.java** — 125 lines, append-only Prometheus text format output
+- **MetricsFlushManager.java** — 115 lines, background daemon thread for periodic flushing
+- **MetricsConfig.java** — 85 lines, configuration container with validation
+
+---
+
 ### v0.4.0 — Multi-Provider AI Support
 **Released:** May 03, 2026
-**Status:** ✅ Latest Stable
+**Status:** ✅ Stable
 **Type:** Feature Release
 
 #### ✨ New Features

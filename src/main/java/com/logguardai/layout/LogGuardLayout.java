@@ -5,6 +5,11 @@ import com.logguardai.ai.AIService;
 import com.logguardai.client.AIServiceFactory;
 import com.logguardai.client.CachedAIService;
 import com.logguardai.exception.ExceptionProcessor;
+import com.logguardai.metrics.MetricsConfig;
+import com.logguardai.metrics.MetricsFileWriter;
+import com.logguardai.metrics.MetricsFlushManager;
+import com.logguardai.metrics.MetricsPattern;
+import com.logguardai.metrics.MetricsRegistry;
 import com.logguardai.model.Token;
 import com.logguardai.sanitizer.SanitizationEngine;
 import com.logguardai.scoring.DecisionEngine;
@@ -44,7 +49,8 @@ import java.util.concurrent.TimeoutException;
  * aiTimeoutMs="2000"
  * aiAsyncWaitMs="100"
  * batchSize="5"
- * samplingRate="0.1"/>
+ * samplingRate="0.1"
+ * extractMetrics="true"/>
  */
 @Plugin(name = "LogGuardLayout", category = Node.CATEGORY, elementType = "layout", printObject = true)
 public class LogGuardLayout extends AbstractStringLayout {
@@ -56,6 +62,7 @@ public class LogGuardLayout extends AbstractStringLayout {
     private final ExceptionProcessor exceptionProcessor;
 
     private final boolean aiEnabled;
+    private final boolean extractMetrics;
     private final AIService aiService;
     private final int aiThreshold;
     private final long aiTimeoutMs;
@@ -63,12 +70,18 @@ public class LogGuardLayout extends AbstractStringLayout {
     private final int batchSize;
     private final double samplingRate;
     private final List<String> safeKeyPatterns;
+    
+    private final MetricsRegistry metricsRegistry;
+    private final MetricsFlushManager metricsFlushManager;
+    
     private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
 
-    public LogGuardLayout(Charset charset, boolean aiEnabled, AIConfig aiConfig,
-            int aiThreshold, long aiAsyncWaitMs, int batchSize, double samplingRate, List<String> safeKeyPatterns) {
+    public LogGuardLayout(Charset charset, boolean aiEnabled, boolean extractMetrics, AIConfig aiConfig,
+            int aiThreshold, long aiAsyncWaitMs, int batchSize, double samplingRate, List<String> safeKeyPatterns,
+            MetricsConfig metricsConfig) {
         super(charset);
         this.aiEnabled = aiEnabled;
+        this.extractMetrics = extractMetrics;
         this.aiThreshold = aiThreshold;
         this.aiTimeoutMs = aiConfig != null ? aiConfig.getTimeoutMs() : 2000;
         this.aiAsyncWaitMs = aiAsyncWaitMs;
@@ -88,6 +101,20 @@ public class LogGuardLayout extends AbstractStringLayout {
             this.aiService = AIServiceFactory.createService(aiConfig);
         } else {
             this.aiService = AIServiceFactory.createService(null); // No-op service
+        }
+        
+        // Initialize metrics if enabled
+        if (extractMetrics && metricsConfig != null && metricsConfig.isConfigured()) {
+            this.metricsRegistry = new MetricsRegistry(metricsConfig.getMaxCardinalityPerPattern());
+            this.metricsRegistry.addPatterns(metricsConfig.getPatterns());
+            this.metricsFlushManager = new MetricsFlushManager(
+                    metricsRegistry,
+                    new MetricsFileWriter(metricsConfig.getFilePath(), metricsRegistry),
+                    metricsConfig.getFlushIntervalMs());
+            this.metricsFlushManager.start();
+        } else {
+            this.metricsRegistry = null;
+            this.metricsFlushManager = null;
         }
     }
 
@@ -114,6 +141,18 @@ public class LogGuardLayout extends AbstractStringLayout {
         }
 
         output.append("\n");
+        
+        // Record metrics if enabled
+        if (extractMetrics && metricsRegistry != null) {
+            try {
+                // Record the original unmodified message for pattern matching
+                String originalMsg = event.getMessage().getFormattedMessage();
+                metricsRegistry.recordLogLine(originalMsg);
+            } catch (Exception e) {
+                // Silently ignore metric recording failures
+            }
+        }
+        
         return output.toString();
     }
 
@@ -299,11 +338,17 @@ public class LogGuardLayout extends AbstractStringLayout {
 
     /**
      * Factory method for Log4j2 plugin creation.
-     * Supports both v0.1 (rule-based only) and v0.2 (with AI) configurations.
+     * Supports v0.1 (rule-based), v0.2 (with AI), and v0.5+ (pattern-based metrics).
      * 
      * Attributes:
      * - safeKeyPatterns: CSV of regex patterns for keys that should NOT be sanitized
      *   Example: ".*correlation.*,x-.*-id,trace.*"
+     * - metricsFilePath: Path to metrics output file (default: logs/metrics.txt)
+     * - metricsFlushIntervalMs: Interval for periodic flush (default: 60000)
+     * - metricsMaxCardinality: Max unique label combos per pattern (default: 10000)
+     * - metricsPatterns: Semicolon-separated pattern definitions
+     *   Format: "name|regex|metricName|field1,field2;name2|regex2|metric2|field1"
+     *   Example: "http_get|GET /([\\w/]+)|http_requests_total|endpoint"
      */
     @PluginFactory
     public static LogGuardLayout createLayout(
@@ -315,6 +360,11 @@ public class LogGuardLayout extends AbstractStringLayout {
             @PluginAttribute(value = "azureEndpoint", defaultString = "") String azureEndpoint,
             @PluginAttribute(value = "azureDeployment", defaultString = "") String azureDeployment,
             @PluginAttribute(value = "azureApiVersion", defaultString = "2023-12-01") String azureApiVersion,
+            @PluginAttribute(value = "extractMetrics", defaultString = "false") boolean extractMetrics,
+            @PluginAttribute(value = "metricsFilePath", defaultString = "logs/metrics.txt") String metricsFilePath,
+            @PluginAttribute(value = "metricsFlushIntervalMs", defaultString = "60000") long metricsFlushIntervalMs,
+            @PluginAttribute(value = "metricsMaxCardinality", defaultString = "10000") int metricsMaxCardinality,
+            @PluginAttribute(value = "metricsPatterns", defaultString = "") String metricsPatterns,
             @PluginAttribute(value = "aiThreshold", defaultString = "5") int aiThreshold,
             @PluginAttribute(value = "aiTimeoutMs", defaultString = "2000") long aiTimeoutMs,
             @PluginAttribute(value = "aiAsyncWaitMs", defaultString = "100") long aiAsyncWaitMs,
@@ -355,8 +405,75 @@ public class LogGuardLayout extends AbstractStringLayout {
             }
         }
 
-        return new LogGuardLayout(charset, aiEnabled, aiConfig,
-                aiThreshold, aiAsyncWaitMs, batchSize, samplingRate, safeKeyPatterns);
+        // Create metrics config if enabled
+        MetricsConfig metricsConfig = null;
+        if (extractMetrics && metricsPatterns != null && !metricsPatterns.isEmpty()) {
+            metricsConfig = new MetricsConfig();
+            metricsConfig.setEnabled(true);
+            metricsConfig.setFilePath(metricsFilePath);
+            metricsConfig.setFlushIntervalMs(metricsFlushIntervalMs);
+            metricsConfig.setMaxCardinalityPerPattern(metricsMaxCardinality);
+            
+            // Parse metrics patterns: "name|regex|metricName|field1,field2;name2|..."
+            String[] patternDefinitions = metricsPatterns.split(";");
+            for (String def : patternDefinitions) {
+                def = def.trim();
+                if (def.isEmpty()) {
+                    continue;
+                }
+                
+                String[] parts = def.split("\\|");
+                if (parts.length >= 4) {
+                    String patternName = parts[0].trim();
+                    String regex = parts[1].trim();
+                    String metricName = parts[2].trim();
+                    String[] fieldNames = parts[3].split(",");
+                    
+                    List<String> fields = new ArrayList<>();
+                    for (String field : fieldNames) {
+                        fields.add(field.trim());
+                    }
+                    
+                    MetricsPattern pattern = new MetricsPattern(patternName, regex, metricName, fields);
+                    metricsConfig.addPattern(pattern);
+                }
+            }
+        }
+
+        return new LogGuardLayout(charset, aiEnabled, extractMetrics, aiConfig,
+                aiThreshold, aiAsyncWaitMs, batchSize, samplingRate, safeKeyPatterns, metricsConfig);
+    }
+
+    /**
+     * Get the metrics registry for testing/monitoring.
+     */
+    public MetricsRegistry getMetricsRegistry() {
+        return metricsRegistry;
+    }
+
+    /**
+     * Get the metrics flush manager for testing/monitoring.
+     */
+    public MetricsFlushManager getMetricsFlushManager() {
+        return metricsFlushManager;
+    }
+
+    /**
+     * Manually flush metrics to file.
+     */
+    public void flushMetrics() {
+        if (metricsFlushManager != null) {
+            metricsFlushManager.flush();
+        }
+    }
+
+    /**
+     * Shutdown metrics system (called on application shutdown).
+     */
+    public void shutdown() {
+        if (metricsFlushManager != null && metricsFlushManager.isRunning()) {
+            metricsFlushManager.stop();
+        }
     }
 
     @Override

@@ -58,6 +58,7 @@ LogGuardAI is a Log4j2 plugin that intercepts log events and intelligently sanit
 - 🏷️ **Enhanced Model Support** — GPT-4, Claude 3, Azure deployments
 - 📊 **Configurable Batch Size** — Tune performance vs. API efficiency
 - 🤖 **Multi-Provider Support** — OpenAI, Anthropic Claude, Azure OpenAI
+- 📈 **Metrics Extraction** — Convert legacy unstructured logs into rich JSON metrics.
 - 🏗️ **Backward Compatible** — Existing configurations work unchanged
 
 ---
@@ -106,6 +107,7 @@ LogGuardAI is a Log4j2 plugin that intercepts log events and intelligently sanit
     aiApiKey="${OPENAI_API_KEY}"
     aiModel="gpt-3.5-turbo"
     samplingRate="0.1"
+    extractMetrics="true"
     batchSize="5"/>
 
 <!-- Anthropic Claude -->
@@ -142,6 +144,7 @@ LogGuardAI is a Log4j2 plugin that intercepts log events and intelligently sanit
 | **Batch Processing** | ❌ | ❌ | ✅ | ✅ |
 | **Async/Non-Blocking** | ❌ | ❌ | ✅ | ✅ |
 | **Multi-Provider AI** | ❌ | ❌ | ❌ | ✅ |
+| **Metrics Extraction**| ❌ | ❌ | ❌ | ✅ |
 | **Latency** | <5ms | <5ms (rule-based)<br/>~1500ms (API)<br/><1ms (cached) | <5ms guaranteed | <5ms guaranteed |
 | **Cost/10M logs** | $0 | $95 (no cache)<br/>$19 (with cache) | $15-20 (with batching) | $15-20 (with batching) |
 | **Dependencies** | 0 | 0 new | 0 new | 0 new |
