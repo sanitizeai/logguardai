@@ -271,4 +271,55 @@ public class LogGuardLayoutMetricsIntegrationTest {
             metricsFile.delete();
         }
     }
+
+    @Test
+    public void testLayoutCreationWithFactoryAlternationRegex() throws InterruptedException {
+        String metricsPatterns = "http_req|(GET|POST|DELETE) ([/\\w/]+) (\\d{3})|http_requests_total|method,endpoint,status";
+        
+        LogGuardLayout factoryLayout = LogGuardLayout.createLayout(
+                StandardCharsets.UTF_8,
+                false,
+                "openai",
+                "",
+                "gpt-3.5-turbo",
+                "",
+                "",
+                "2023-12-01",
+                true,
+                "target/factory_metrics_alt.txt",
+                5000,
+                1000,
+                metricsPatterns,
+                5,
+                2000,
+                100,
+                5,
+                0.05,
+                ""
+        );
+        
+        assertNotNull("Factory should create layout", factoryLayout);
+        assertNotNull("Layout should have metrics registry", factoryLayout.getMetricsRegistry());
+        assertEquals("Should have 1 pattern from factory definition", 1, factoryLayout.getMetricsRegistry().getPatternCount());
+        
+        // Verify the regex is preserved and can match a log line with alternation
+        Log4jLogEvent event = Log4jLogEvent.newBuilder()
+                .setLoggerName("com.example.App")
+                .setLevel(Level.INFO)
+                .setMessage(new SimpleMessage("POST /api/orders 201"))
+                .setTimeMillis(System.currentTimeMillis())
+                .build();
+        
+        factoryLayout.toSerializable(event);
+        factoryLayout.flushMetrics();
+        Thread.sleep(500);
+        
+        assertTrue("Metrics registry should record alternation regex matches", factoryLayout.getMetricsRegistry().getMetricsCount() > 0);
+        
+        factoryLayout.shutdown();
+        File metricsFile = new File("target/factory_metrics_alt.txt");
+        if (metricsFile.exists()) {
+            //metricsFile.delete();
+        }
+    }
 }

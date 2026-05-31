@@ -419,6 +419,7 @@ public class LogGuardLayout extends AbstractStringLayout {
             metricsConfig.setMaxCardinalityPerPattern(metricsMaxCardinality);
             
             // Parse metrics patterns: "name|regex|metricName|field1,field2;name2|..."
+            // Regex itself may contain alternation pipes (|), so parse by field positions.
             String[] patternDefinitions = metricsPatterns.split(";");
             for (String def : patternDefinitions) {
                 def = def.trim();
@@ -426,21 +427,29 @@ public class LogGuardLayout extends AbstractStringLayout {
                     continue;
                 }
                 
-                String[] parts = def.split("\\|");
-                if (parts.length >= 4) {
-                    String patternName = parts[0].trim();
-                    String regex = parts[1].trim();
-                    String metricName = parts[2].trim();
-                    String[] fieldNames = parts[3].split(",");
-                    
-                    List<String> fields = new ArrayList<>();
-                    for (String field : fieldNames) {
-                        fields.add(field.trim());
-                    }
-                    
-                    MetricsPattern pattern = new MetricsPattern(patternName, regex, metricName, fields);
-                    metricsConfig.addPattern(pattern);
+                int firstPipe = def.indexOf('|');
+                int lastPipe = def.lastIndexOf('|');
+                if (firstPipe < 0 || lastPipe < 0 || firstPipe == lastPipe) {
+                    continue;
                 }
+
+                int secondLastPipe = def.lastIndexOf('|', lastPipe - 1);
+                if (secondLastPipe <= firstPipe) {
+                    continue;
+                }
+
+                String patternName = def.substring(0, firstPipe).trim();
+                String regex = def.substring(firstPipe + 1, secondLastPipe).trim();
+                String metricName = def.substring(secondLastPipe + 1, lastPipe).trim();
+                String[] fieldNames = def.substring(lastPipe + 1).split(",");
+
+                List<String> fields = new ArrayList<>();
+                for (String field : fieldNames) {
+                    fields.add(field.trim());
+                }
+
+                MetricsPattern pattern = new MetricsPattern(patternName, regex, metricName, fields);
+                metricsConfig.addPattern(pattern);
             }
         }
 
@@ -448,9 +457,6 @@ public class LogGuardLayout extends AbstractStringLayout {
                 aiThreshold, aiAsyncWaitMs, batchSize, samplingRate, safeKeyPatterns, metricsConfig);
     }
 
-    /**
-     * Get the metrics registry for testing/monitoring.
-     */
     public MetricsRegistry getMetricsRegistry() {
         return metricsRegistry;
     }
