@@ -1,12 +1,13 @@
 package com.logguardai.client;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import com.logguardai.ai.AIService;
 import com.logguardai.ai.AIServiceException;
 import com.logguardai.cache.LRUCache;
-
-import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
 
 /**
  * Cached wrapper for AIService implementations.

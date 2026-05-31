@@ -1,9 +1,13 @@
 package com.logguardai.scoring;
 
-import com.logguardai.model.Token;
-
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.regex.Pattern;
+
+import com.logguardai.model.Token;
 
 /**
  * Risk Scoring Engine that assigns a risk score to tokens based on heuristics.

@@ -1,9 +1,16 @@
 package com.logguardai.client;
 
-import com.logguardai.ai.AIConfig;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+
 import org.junit.Test;
-import java.util.*;
-import static org.junit.Assert.*;
+
+import com.logguardai.ai.AIConfig;
 
 /**
  * Tests for AzureOpenAIService.

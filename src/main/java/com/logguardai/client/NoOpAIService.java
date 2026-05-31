@@ -1,9 +1,11 @@
 package com.logguardai.client;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import com.logguardai.ai.AIService;
 import com.logguardai.ai.AIServiceException;
-
-import java.util.*;
 
 /**
  * No-op AIService stub implementation.

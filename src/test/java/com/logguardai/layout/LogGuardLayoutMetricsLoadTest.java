@@ -1,13 +1,7 @@
 package com.logguardai.layout;
 
-import com.logguardai.metrics.MetricsConfig;
-import com.logguardai.metrics.MetricsPattern;
-import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.core.impl.Log4jLogEvent;
-import org.apache.logging.log4j.message.SimpleMessage;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.io.File;
 import java.nio.charset.StandardCharsets;
@@ -19,8 +13,15 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.core.impl.Log4jLogEvent;
+import org.apache.logging.log4j.message.SimpleMessage;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+
+import com.logguardai.metrics.MetricsConfig;
+import com.logguardai.metrics.MetricsPattern;
 
 /**
  * Load test for the LogGuardLayout metrics extraction path.

@@ -84,7 +84,7 @@ LogGuardAI is a Log4j2 plugin that intercepts log events and intelligently sanit
   metricsPatterns="http_requests|(GET|POST|DELETE) ([/\\w/]+) (\\d{3})|http_requests_total|method,endpoint,status"/>
 ```
 
-See `docs/guides/metrics-configuration.md` for full configuration details and examples.
+See [Metrics Configuration](docs/guides/metrics-configuration.md) for full configuration details and examples.
 
 ---
 
@@ -164,14 +164,14 @@ Tip: To enable pattern-based metrics, set `extractMetrics="true"` and configure 
 ## 📊 Comparison: v0.1 vs v0.2 vs v0.3 vs v0.4 vs v0.5
 
 | Feature | v0.1 | v0.2 | v0.3 | v0.4 | v0.5 |
-|---------|------|------|------|------|
+|---------|------|------|------|------|------
 | **Rule-Based Masking** | ✅ | ✅ | ✅ | ✅ | ✅ |
 | **AI Sanitization** | ❌ | ✅ | ✅ | ✅ | ✅ |
 | **LRU Caching** | ❌ | ✅ | ✅ | ✅ | ✅ |
 | **Batch Processing** | ❌ | ❌ | ✅ | ✅ | ✅ |
 | **Async/Non-Blocking** | ❌ | ❌ | ✅ | ✅ | ✅ |
 | **Multi-Provider AI** | ❌ | ❌ | ❌ | ✅ | ✅ |
-| **Metrics Extraction**| ❌ | ❌ | ❌ | ✅ | ✅ (pattern-based) |
+| **Metrics Extraction**| ❌ | ❌ | ❌ | ❌ | ✅ (pattern-based) |
 | **Latency** | <5ms | <5ms (rule-based)<br/>~1500ms (API)<br/><1ms (cached) | <5ms guaranteed | <5ms guaranteed | <5ms guaranteed |
 | **Cost/10M logs** | $0 | $95 (no cache)<br/>$19 (with cache) | $15-20 (with batching) | $15-20 (with batching) | $15-25 (depends on metrics config) |
 | **Dependencies** | 0 | 0 new | 0 new | 0 new | 0 new |

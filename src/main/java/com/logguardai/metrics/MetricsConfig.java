@@ -1,6 +1,7 @@
 package com.logguardai.metrics;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Configuration for pattern-based metrics system.

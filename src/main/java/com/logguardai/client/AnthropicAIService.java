@@ -1,16 +1,28 @@
 package com.logguardai.client;
 
-import com.google.gson.*;
-import com.logguardai.ai.AIConfig;
-import com.logguardai.ai.AIService;
-import com.logguardai.ai.AIServiceException;
-
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
-import java.util.concurrent.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.logguardai.ai.AIConfig;
+import com.logguardai.ai.AIService;
+import com.logguardai.ai.AIServiceException;
 
 /**
  * Anthropic Claude AI service implementation.
@@ -179,11 +191,11 @@ public class AnthropicAIService implements AIService {
 
         return CompletableFuture.supplyAsync(() -> {
             try {
-                return makeAPICall(prompt);
+                return callAnthropic(prompt, "Sanitize value", config.getTimeoutMs());
             } catch (Exception e) {
                 throw new CompletionException(new AIServiceException("API call failed: " + e.getMessage(), e));
             }
-        }, executor).orTimeout(config.getTimeoutMs(), TimeUnit.MILLISECONDS);
+        }, executor);
     }
 
     @Override
@@ -206,11 +218,11 @@ public class AnthropicAIService implements AIService {
 
         return CompletableFuture.supplyAsync(() -> {
             try {
-                return makeAPICall(prompt);
+                return callAnthropic(prompt, "Explain exception", config.getTimeoutMs());
             } catch (Exception e) {
                 throw new CompletionException(new AIServiceException("API call failed: " + e.getMessage(), e));
             }
-        }, executor).orTimeout(config.getTimeoutMs(), TimeUnit.MILLISECONDS);
+        }, executor);
     }
 
     @Override
@@ -230,11 +242,11 @@ public class AnthropicAIService implements AIService {
 
         return CompletableFuture.supplyAsync(() -> {
             try {
-                return makeAPICall(prompt);
+                return callAnthropic(prompt, "Classify data", config.getTimeoutMs());
             } catch (Exception e) {
                 throw new CompletionException(new AIServiceException("API call failed: " + e.getMessage(), e));
             }
-        }, executor).orTimeout(config.getTimeoutMs(), TimeUnit.MILLISECONDS)
+        }, executor)
           .thenApply(String::toLowerCase);
     }
 

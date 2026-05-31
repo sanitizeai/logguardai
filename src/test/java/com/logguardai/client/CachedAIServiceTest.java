@@ -1,10 +1,15 @@
 package com.logguardai.client;
 
+import static org.junit.Assert.assertEquals;
+
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+
+import org.junit.Test;
+
 import com.logguardai.ai.AIService;
 import com.logguardai.cache.LRUCache;
-import org.junit.Test;
-import static org.junit.Assert.*;
-import java.util.*;
 
 public class CachedAIServiceTest {
     

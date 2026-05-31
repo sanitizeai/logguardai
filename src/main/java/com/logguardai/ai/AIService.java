@@ -1,9 +1,9 @@
 package com.logguardai.ai;
 
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
 /**
  * AIService interface for integrating AI-based sanitization, exception explanations,

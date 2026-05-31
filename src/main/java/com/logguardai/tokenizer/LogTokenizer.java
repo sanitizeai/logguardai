@@ -1,11 +1,15 @@
 package com.logguardai.tokenizer;
 
-import com.google.gson.*;
-import com.logguardai.model.Token;
-
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.google.gson.JsonSyntaxException;
+import com.logguardai.model.Token;
 
 /**
  * Tokenizer for breaking log messages into meaningful key-value pairs.

@@ -1,9 +1,27 @@
 package com.logguardai.layout;
 
+import java.nio.charset.Charset;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+
+import org.apache.logging.log4j.core.LogEvent;
+import org.apache.logging.log4j.core.config.Node;
+import org.apache.logging.log4j.core.config.plugins.Plugin;
+import org.apache.logging.log4j.core.config.plugins.PluginAttribute;
+import org.apache.logging.log4j.core.config.plugins.PluginFactory;
+import org.apache.logging.log4j.core.layout.AbstractStringLayout;
+
 import com.logguardai.ai.AIConfig;
 import com.logguardai.ai.AIService;
 import com.logguardai.client.AIServiceFactory;
-import com.logguardai.client.CachedAIService;
 import com.logguardai.exception.ExceptionProcessor;
 import com.logguardai.metrics.MetricsConfig;
 import com.logguardai.metrics.MetricsFileWriter;
@@ -15,20 +33,6 @@ import com.logguardai.sanitizer.SanitizationEngine;
 import com.logguardai.scoring.DecisionEngine;
 import com.logguardai.scoring.RiskScoringEngine;
 import com.logguardai.tokenizer.LogTokenizer;
-import org.apache.logging.log4j.core.LogEvent;
-import org.apache.logging.log4j.core.config.plugins.Plugin;
-import org.apache.logging.log4j.core.config.plugins.PluginAttribute;
-import org.apache.logging.log4j.core.config.plugins.PluginFactory;
-import org.apache.logging.log4j.core.layout.AbstractStringLayout;
-import org.apache.logging.log4j.core.config.Node;
-
-import java.nio.charset.Charset;
-import java.text.SimpleDateFormat;
-import java.util.*;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 /**
  * LogGuardLayout - Main Log4j2 plugin for sanitizing logs.

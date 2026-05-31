@@ -1,6 +1,7 @@
 package com.logguardai.exception;
 
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Exception Processor that generates human-friendly insights for exceptions.

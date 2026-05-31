@@ -1,9 +1,13 @@
 package com.logguardai.client;
 
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
+
+import org.junit.Test;
+
 import com.logguardai.ai.AIConfig;
 import com.logguardai.ai.AIService;
-import org.junit.Test;
-import static org.junit.Assert.*;
 
 public class AIServiceFactoryTest {
     
