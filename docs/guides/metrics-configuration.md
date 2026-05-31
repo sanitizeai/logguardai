@@ -1,8 +1,8 @@
-# Pattern-Based Metrics System - Configuration Guide
+# Pattern-Based Metrics System - Logs to Metrics Configuration Guide
 
 ## Overview
 
-LogGuardAI v0.5.0 introduces a **pattern-based metrics system** that allows you to extract metrics directly from log messages using customizable regex patterns. Unlike external monitoring systems, this approach is:
+LogGuardAI v0.5.0 introduces a **pattern-based logs-to-metrics system** that allows you to extract metrics directly from Log4j2 log messages using customizable regex patterns. This enables Log4j2 metrics extraction and Prometheus-compatible metric output without external monitoring infrastructure. Unlike external systems, this approach is:
 
 - **Built-in**: No external dependencies (zero additional infrastructure)
 - **User-Defined**: Create patterns specific to your application's log format

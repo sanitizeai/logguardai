@@ -11,6 +11,7 @@
 ## 🎯 What is LogGuardAI?
 
 LogGuardAI is a Log4j2 plugin that intercepts log events and intelligently sanitizes them to **prevent accidental exposure of sensitive data** like passwords, API keys, tokens, and personal information.
+It also supports logs-to-metrics extraction for Log4j2, converting log lines into Prometheus-style metrics using custom regex patterns.
 
 ### The Problem
 ```
@@ -70,6 +71,7 @@ LogGuardAI is a Log4j2 plugin that intercepts log events and intelligently sanit
 - 📊 **Pattern-Based Metrics** — Define custom regex patterns to extract metrics directly from logs
 - 🎯 **User-Defined Patterns** — Create metrics for HTTP requests, FTP transfers, database queries, etc.
 - 💾 **Append-Only File** — Metrics stored in Prometheus text format with cumulative history
+- 📈 **Logs-to-Metrics Conversion** — Convert Log4j2 log entries into counters and labels for monitoring and alerting
 - ⚙️ **Periodic Flushing** — Configurable flush interval (default: 60 seconds)
 - 🔐 **Cardinality Protection** — Configurable limits prevent unbounded metric combinations (default: 10,000)
 - 🔌 **Zero Dependencies** — No external monitoring infrastructure required
@@ -124,6 +126,19 @@ See [Metrics Configuration](docs/guides/metrics-configuration.md) for full confi
 ```
 
 Tip: To enable pattern-based metrics, set `extractMetrics="true"` and configure `metricsFilePath`, `metricsFlushIntervalMs`, `metricsMaxCardinality`, and `metricsPatterns` as shown in the v0.5 section above.
+
+## 📈 Logs to Metrics with LogGuardAI
+LogGuardAI v0.5 makes it easy to transform Log4j2 log messages into Prometheus-compatible metrics. Use `metricsPatterns` to extract method, endpoint, status, latency, and other useful labels from structured log lines.
+
+Example: convert request logs into a counter metric for `http_requests_total` with labels like `method`, `endpoint`, and `status`.
+
+This is ideal for:
+- Log4j2 metrics extraction
+- Logs-to-metrics pipelines
+- Prometheus text metric generation from application logs
+- Regex-based log analytics without external agents
+
+---
 
 ### 3. Done! (Optional: Enable AI with Batch Processing)
 ```xml
