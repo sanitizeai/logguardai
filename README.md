@@ -48,6 +48,7 @@ LogGuardAI is a Log4j2 plugin that intercepts log events and intelligently sanit
 - 📦 **Batch AI Processing** — Process multiple sensitive values together (5x efficiency)
 - ⚡ **Async/Non-Blocking** — AI calls never block log threads (<5ms guaranteed)
 - 🔄 **Smart Fallbacks** — Rule-based masking if AI fails or times out
+
 - 🐛 **Spring Boot Compatibility** — Fixed Log4j2 plugin registration issues
 
 ### v0.4: Multi-Provider AI Support (Enterprise Ready)
@@ -60,6 +61,30 @@ LogGuardAI is a Log4j2 plugin that intercepts log events and intelligently sanit
 - 🤖 **Multi-Provider Support** — OpenAI, Anthropic Claude, Azure OpenAI
 - 📈 **Metrics Extraction** — Convert legacy unstructured logs into rich JSON metrics.
 - 🏗️ **Backward Compatible** — Existing configurations work unchanged
+
+
+### v0.5: Pattern-Based Metrics (Optional)
+**Released:** May 27, 2026
+
+#### ✨ New Features
+- 📊 **Pattern-Based Metrics** — Define custom regex patterns to extract metrics directly from logs
+- 🎯 **User-Defined Patterns** — Create metrics for HTTP requests, FTP transfers, database queries, etc.
+- 💾 **Append-Only File** — Metrics stored in Prometheus text format with cumulative history
+- ⚙️ **Periodic Flushing** — Configurable flush interval (default: 60 seconds)
+- 🔐 **Cardinality Protection** — Configurable limits prevent unbounded metric combinations (default: 10,000)
+- 🔌 **Zero Dependencies** — No external monitoring infrastructure required
+
+#### Quick Example (log4j2.xml)
+```xml
+<LogGuardLayout 
+  extractMetrics="true"
+  metricsFilePath="logs/metrics.txt"
+  metricsFlushIntervalMs="60000"
+  metricsMaxCardinality="10000"
+  metricsPatterns="http_requests|(GET|POST|DELETE) ([/\\w/]+) (\\d{3})|http_requests_total|method,endpoint,status"/>
+```
+
+See `docs/guides/metrics-configuration.md` for full configuration details and examples.
 
 ---
 
@@ -77,7 +102,7 @@ LogGuardAI is a Log4j2 plugin that intercepts log events and intelligently sanit
 <dependency>
     <groupId>com.logguardai</groupId>
     <artifactId>logguardai</artifactId>
-    <version>0.4.0</version>  <!-- Latest: Multi-Provider AI Support -->
+    <version>0.5.0</version>  <!-- Latest: Logs to metrics -->
 </dependency>
 ```
 
@@ -97,6 +122,8 @@ LogGuardAI is a Log4j2 plugin that intercepts log events and intelligently sanit
   </Loggers>
 </Configuration>
 ```
+
+Tip: To enable pattern-based metrics, set `extractMetrics="true"` and configure `metricsFilePath`, `metricsFlushIntervalMs`, `metricsMaxCardinality`, and `metricsPatterns` as shown in the v0.5 section above.
 
 ### 3. Done! (Optional: Enable AI with Batch Processing)
 ```xml
@@ -134,21 +161,21 @@ LogGuardAI is a Log4j2 plugin that intercepts log events and intelligently sanit
 
 ---
 
-## 📊 Comparison: v0.1 vs v0.2 vs v0.3 vs v0.4
+## 📊 Comparison: v0.1 vs v0.2 vs v0.3 vs v0.4 vs v0.5
 
-| Feature | v0.1 | v0.2 | v0.3 | v0.4 |
+| Feature | v0.1 | v0.2 | v0.3 | v0.4 | v0.5 |
 |---------|------|------|------|------|
-| **Rule-Based Masking** | ✅ | ✅ | ✅ | ✅ |
-| **AI Sanitization** | ❌ | ✅ | ✅ | ✅ |
-| **LRU Caching** | ❌ | ✅ | ✅ | ✅ |
-| **Batch Processing** | ❌ | ❌ | ✅ | ✅ |
-| **Async/Non-Blocking** | ❌ | ❌ | ✅ | ✅ |
-| **Multi-Provider AI** | ❌ | ❌ | ❌ | ✅ |
-| **Metrics Extraction**| ❌ | ❌ | ❌ | ✅ |
-| **Latency** | <5ms | <5ms (rule-based)<br/>~1500ms (API)<br/><1ms (cached) | <5ms guaranteed | <5ms guaranteed |
-| **Cost/10M logs** | $0 | $95 (no cache)<br/>$19 (with cache) | $15-20 (with batching) | $15-20 (with batching) |
-| **Dependencies** | 0 | 0 new | 0 new | 0 new |
-| **Backward Compatible** | N/A | ✅ 100% | ✅ 100% | ✅ 100% |
+| **Rule-Based Masking** | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **AI Sanitization** | ❌ | ✅ | ✅ | ✅ | ✅ |
+| **LRU Caching** | ❌ | ✅ | ✅ | ✅ | ✅ |
+| **Batch Processing** | ❌ | ❌ | ✅ | ✅ | ✅ |
+| **Async/Non-Blocking** | ❌ | ❌ | ✅ | ✅ | ✅ |
+| **Multi-Provider AI** | ❌ | ❌ | ❌ | ✅ | ✅ |
+| **Metrics Extraction**| ❌ | ❌ | ❌ | ✅ | ✅ (pattern-based) |
+| **Latency** | <5ms | <5ms (rule-based)<br/>~1500ms (API)<br/><1ms (cached) | <5ms guaranteed | <5ms guaranteed | <5ms guaranteed |
+| **Cost/10M logs** | $0 | $95 (no cache)<br/>$19 (with cache) | $15-20 (with batching) | $15-20 (with batching) | $15-25 (depends on metrics config) |
+| **Dependencies** | 0 | 0 new | 0 new | 0 new | 0 new |
+| **Backward Compatible** | N/A | ✅ 100% | ✅ 100% | ✅ 100% | ✅ 100% |
 
 ---
 
@@ -245,6 +272,8 @@ logger.info("Incoming request: Authorization={} X-API-Key={} User-Agent={}",
 // Headers sanitized intelligently! ✅
 ```
 
+Also: use `metricsPatterns` to extract request counts, paths and status codes for lightweight in-app metrics collection.
+
 ---
 
 ## 📊 Performance
@@ -309,7 +338,7 @@ mvn test
 
 ### Verify Installation
 ```bash
-ls target/logguardai-0.4.0.jar
+ls target/logguardai-0.5.0.jar
 ```
 
 ---
@@ -318,7 +347,8 @@ ls target/logguardai-0.4.0.jar
 
 | Version | Release Date | Status | What's New |
 |---------|--------------|--------|-----------|
-| **v0.4.0** | 2026-05-03 | ✅ Latest | Multi-Provider AI Support |
+| **v0.5.0** | 2026-05-27 | ✅ Latest | Pattern-Based Metrics (user-defined regex metrics) |
+| **v0.4.0** | 2026-05-03 | ✅ Stable | Multi-Provider AI Support |
 | **v0.3.0** | 2026-05-01 | ✅ Stable | Plugin Registration Fix |
 | **v0.2.0** | 2026-04-23 | ✅ Stable | AI + Caching |
 | **v0.1.0** | 2026-04-22 | ✅ Stable | Rule-based masking |
