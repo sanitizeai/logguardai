@@ -63,6 +63,31 @@ public class AIServiceFactoryTest {
     }
     
     @Test
+    public void testCreateOllamaConfig() {
+        AIConfig config = new AIConfig();
+        config.setApiProvider("ollama");
+        config.setModel("llama3");
+        config.setOllamaEndpoint("http://localhost:11434");
+
+        AIService service = AIServiceFactory.createService(config);
+        assertNotNull(service);
+        AIService unwrapped = unwrap(service);
+        assertTrue(unwrapped instanceof OllamaAIService);
+    }
+
+    @Test
+    public void testCreateOnnxConfig() {
+        AIConfig config = new AIConfig();
+        config.setApiProvider("onnx");
+        config.setOnnxModelPath("");
+
+        AIService service = AIServiceFactory.createService(config);
+        assertNotNull(service);
+        AIService unwrapped = unwrap(service);
+        assertTrue(unwrapped instanceof OnnxAIService);
+    }
+    
+    @Test
     public void testCreateWithCaching() {
         AIService baseService = new NoOpAIService();
         AIService cachedService = AIServiceFactory.withCaching(baseService, 100, 3600000);
@@ -79,5 +104,12 @@ public class AIServiceFactoryTest {
         
         // Should return same instance, not double-wrap
         assertSame(cached1, cached2);
+    }
+
+    private AIService unwrap(AIService service) {
+        if (service instanceof CachedAIService) {
+            return ((CachedAIService) service).getDelegate();
+        }
+        return service;
     }
 }

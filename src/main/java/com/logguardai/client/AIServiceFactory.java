@@ -25,6 +25,10 @@ public class AIServiceFactory {
             service = new AnthropicAIService(config);
         } else if ("azure-openai".equalsIgnoreCase(config.getApiProvider())) {
             service = new AzureOpenAIService(config);
+        } else if ("ollama".equalsIgnoreCase(config.getApiProvider())) {
+            service = new OllamaAIService(config);
+        } else if ("onnx".equalsIgnoreCase(config.getApiProvider())) {
+            service = new OnnxAIService(config);
         } else {
             // Default to no-op for unknown providers
             service = new NoOpAIService();

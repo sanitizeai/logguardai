@@ -11,7 +11,7 @@
 ## 🎯 What is LogGuardAI?
 
 LogGuardAI is a Log4j2 plugin that intercepts log events and intelligently sanitizes them to **prevent accidental exposure of sensitive data** like passwords, API keys, tokens, and personal information.
-It also supports logs-to-metrics extraction for Log4j2, converting log lines into Prometheus-style metrics using custom regex patterns.
+It also supports logs-to-metrics extraction for Log4j2, converting log lines into Prometheus-style metrics using custom regex patterns, and local AI inference through Ollama and ONNX for offline or privacy-sensitive deployments.
 
 ### The Problem
 ```
@@ -44,6 +44,12 @@ It also supports logs-to-metrics extraction for Log4j2, converting log lines int
 - 🏆 **Enhanced Exceptions** — AI explains what went wrong
 - 🔍 **Data Classification** — Automatically identify PII vs. sensitive data
 - 📊 **Configurable Sampling** — Control AI costs (5%-100%)
+
+#### How Caching Works
+LogGuardAI uses an in-memory LRU cache for AI sanitization results. When a value is first seen, the plugin performs an AI decision and stores the result. On later occurrences, the same normalized input can be served from the cache instantly, avoiding another API call and reducing latency and cost.
+
+#### How Effective Is It for Highly Variable Log Data?
+Caching is most effective when logs contain repeated values or recurring patterns, such as common secrets, repeated tokens, similar error messages, or repeated request structures. Its benefit drops when every log entry is unique, such as logs with random IDs, timestamps, or highly personalized payloads. In those cases, the hit rate may be lower, but the cache still helps for repeated sensitive patterns and bursty traffic with shared structure.
 
 ### v0.3: Batch Processing (Performance Optimized)
 - 📦 **Batch AI Processing** — Process multiple sensitive values together (5x efficiency)
@@ -88,6 +94,35 @@ It also supports logs-to-metrics extraction for Log4j2, converting log lines int
 
 See [Metrics Configuration](docs/guides/metrics-configuration.md) for full configuration details and examples.
 
+### v0.6: Local AI Providers (Ollama & ONNX)
+**Planned / Next Release:** 0.6.0
+
+#### ✨ New Features
+- 🤖 **Ollama Support** — Use local models with an Ollama endpoint for privacy-first, low-latency inference
+- 🧠 **ONNX Runtime Support** — Load local ONNX model files for fully offline sanitization workflows
+- 🔧 **Provider-Specific Configuration** — Configure `aiProvider="ollama"` or `aiProvider="onnx"` directly in Log4j2
+- 🛡️ **Offline-Friendly** — Ideal for air-gapped environments, internal networks, or regulated deployments
+
+#### Example Configurations
+```xml
+<!-- Ollama -->
+<LogGuardLayout
+    aiEnabled="true"
+    aiProvider="ollama"
+    aiModel="llama3.1"
+    ollamaEndpoint="http://localhost:11434"
+    samplingRate="0.1"
+    batchSize="5"/>
+
+<!-- ONNX -->
+<LogGuardLayout
+    aiEnabled="true"
+    aiProvider="onnx"
+    onnxModelPath="/models/sanitizer.onnx"
+    samplingRate="0.1"
+    batchSize="5"/>
+```
+
 ---
 
 ## 🚀 Quick Start (5 minutes)
@@ -104,7 +139,7 @@ See [Metrics Configuration](docs/guides/metrics-configuration.md) for full confi
 <dependency>
     <groupId>com.logguardai</groupId>
     <artifactId>logguardai</artifactId>
-    <version>0.5.0</version>  <!-- Latest: Logs to metrics -->
+    <version>0.6.0</version>  <!-- Latest: local AI providers + metrics -->
 </dependency>
 ```
 
@@ -172,25 +207,43 @@ This is ideal for:
     azureApiVersion="2023-12-01"
     samplingRate="0.1"
     batchSize="5"/>
+
+<!-- Ollama -->
+<LogGuardLayout
+    aiEnabled="true"
+    aiProvider="ollama"
+    aiModel="llama3.1"
+    ollamaEndpoint="http://localhost:11434"
+    samplingRate="0.1"
+    batchSize="5"/>
+
+<!-- ONNX -->
+<LogGuardLayout
+    aiEnabled="true"
+    aiProvider="onnx"
+    onnxModelPath="/models/sanitizer.onnx"
+    samplingRate="0.1"
+    batchSize="5"/>
 ```
 
 ---
 
-## 📊 Comparison: v0.1 vs v0.2 vs v0.3 vs v0.4 vs v0.5
+## 📊 Comparison: v0.1 vs v0.2 vs v0.3 vs v0.4 vs v0.5 vs v0.6
 
-| Feature | v0.1 | v0.2 | v0.3 | v0.4 | v0.5 |
-|---------|------|------|------|------|------
-| **Rule-Based Masking** | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **AI Sanitization** | ❌ | ✅ | ✅ | ✅ | ✅ |
-| **LRU Caching** | ❌ | ✅ | ✅ | ✅ | ✅ |
-| **Batch Processing** | ❌ | ❌ | ✅ | ✅ | ✅ |
-| **Async/Non-Blocking** | ❌ | ❌ | ✅ | ✅ | ✅ |
-| **Multi-Provider AI** | ❌ | ❌ | ❌ | ✅ | ✅ |
-| **Metrics Extraction**| ❌ | ❌ | ❌ | ❌ | ✅ (pattern-based) |
-| **Latency** | <5ms | <5ms (rule-based)<br/>~1500ms (API)<br/><1ms (cached) | <5ms guaranteed | <5ms guaranteed | <5ms guaranteed |
-| **Cost/10M logs** | $0 | $95 (no cache)<br/>$19 (with cache) | $15-20 (with batching) | $15-20 (with batching) | $15-25 (depends on metrics config) |
-| **Dependencies** | 0 | 0 new | 0 new | 0 new | 0 new |
-| **Backward Compatible** | N/A | ✅ 100% | ✅ 100% | ✅ 100% | ✅ 100% |
+| Feature | v0.1 | v0.2 | v0.3 | v0.4 | v0.5 | v0.6 |
+|---------|------|------|------|------|------|------|
+| **Rule-Based Masking** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **AI Sanitization** | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **LRU Caching** | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Batch Processing** | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ |
+| **Async/Non-Blocking** | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ |
+| **Multi-Provider AI** | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ |
+| **Local AI Providers** | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ (Ollama / ONNX) |
+| **Metrics Extraction**| ❌ | ❌ | ❌ | ❌ | ✅ (pattern-based) | ✅ (pattern-based) |
+| **Latency** | <5ms | <5ms (rule-based)<br/>~1500ms (API)<br/><1ms (cached) | <5ms guaranteed | <5ms guaranteed | <5ms guaranteed | <5ms guaranteed |
+| **Cost/10M logs** | $0 | $95 (no cache)<br/>$19 (with cache) | $15-20 (with batching) | $15-20 (with batching) | $15-25 (depends on metrics config) | $15-25 (depends on provider) |
+| **Dependencies** | 0 | 0 new | 0 new | 0 new | 0 new | 0 new |
+| **Backward Compatible** | N/A | ✅ 100% | ✅ 100% | ✅ 100% | ✅ 100% | ✅ 100% |
 
 ---
 
@@ -353,7 +406,7 @@ mvn test
 
 ### Verify Installation
 ```bash
-ls target/logguardai-0.5.0.jar
+ls target/logguardai-0.6.0.jar
 ```
 
 ---
@@ -362,7 +415,8 @@ ls target/logguardai-0.5.0.jar
 
 | Version | Release Date | Status | What's New |
 |---------|--------------|--------|-----------|
-| **v0.5.0** | 2026-05-27 | ✅ Latest | Pattern-Based Metrics (user-defined regex metrics) |
+| **v0.6.0** | 2026-07-21 | ✅ Latest | Local AI Providers (Ollama + ONNX) + Metrics Support |
+| **v0.5.0** | 2026-05-27 | ✅ Stable | Pattern-Based Metrics (user-defined regex metrics) |
 | **v0.4.0** | 2026-05-03 | ✅ Stable | Multi-Provider AI Support |
 | **v0.3.0** | 2026-05-01 | ✅ Stable | Plugin Registration Fix |
 | **v0.2.0** | 2026-04-23 | ✅ Stable | AI + Caching |

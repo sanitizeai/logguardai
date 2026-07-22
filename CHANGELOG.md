@@ -8,6 +8,27 @@ All notable changes to LogGuardAI are documented here.
 
 ## Versions
 
+### v0.6.0 — Local AI Providers & Release Readiness
+**Released:** July 21, 2026
+**Status:** ✅ Latest Stable
+**Type:** Feature Release
+
+#### ✨ New Features
+- 🤖 **Ollama Support** — Configure LogGuardAI to use local Ollama models for privacy-first inference
+- 🧠 **ONNX Runtime Support** — Load local ONNX model artifacts for fully offline sanitization workflows
+- 🔧 **Provider Configuration** — New `ollama` and `onnx` values for `aiProvider`
+- 📦 **Release Preparation** — Version metadata and documentation updated for the next stable release
+
+#### 📚 Documentation
+- README updated with local AI provider examples and 0.6.0 release guidance
+- Quick-start examples now include Ollama and ONNX configuration snippets
+
+#### ✅ Compatibility
+- **Backward compatible** with existing OpenAI, Anthropic, Azure OpenAI, and metrics configurations
+- No breaking changes required for existing deployments
+
+---
+
 ### v0.5.0 — Pattern-Based Metrics System
 **Released:** May 27, 2026
 **Status:** ✅ Latest Stable

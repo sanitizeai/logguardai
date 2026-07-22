@@ -364,6 +364,8 @@ public class LogGuardLayout extends AbstractStringLayout {
             @PluginAttribute(value = "azureEndpoint", defaultString = "") String azureEndpoint,
             @PluginAttribute(value = "azureDeployment", defaultString = "") String azureDeployment,
             @PluginAttribute(value = "azureApiVersion", defaultString = "2023-12-01") String azureApiVersion,
+            @PluginAttribute(value = "ollamaEndpoint", defaultString = "http://localhost:11434") String ollamaEndpoint,
+            @PluginAttribute(value = "onnxModelPath", defaultString = "") String onnxModelPath,
             @PluginAttribute(value = "extractMetrics", defaultString = "false") boolean extractMetrics,
             @PluginAttribute(value = "metricsFilePath", defaultString = "logs/metrics.txt") String metricsFilePath,
             @PluginAttribute(value = "metricsFlushIntervalMs", defaultString = "60000") long metricsFlushIntervalMs,
@@ -387,12 +389,21 @@ public class LogGuardLayout extends AbstractStringLayout {
 
         // Create AI config with provider-specific settings
         AIConfig aiConfig = null;
-        if (aiEnabled && aiApiKey != null && !aiApiKey.isEmpty()) {
+        boolean hasApiKey = aiApiKey != null && !aiApiKey.isEmpty();
+        boolean isLocalProvider = "ollama".equalsIgnoreCase(aiProvider) || "onnx".equalsIgnoreCase(aiProvider);
+        if (aiEnabled && (hasApiKey || isLocalProvider)) {
             aiConfig = new AIConfig();
             aiConfig.setApiProvider(aiProvider);
             aiConfig.setApiKey(aiApiKey);
             aiConfig.setModel(aiModel);
             aiConfig.setTimeoutMs(aiTimeoutMs);
+            aiConfig.setOllamaEndpoint(ollamaEndpoint);
+            aiConfig.setOnnxModelPath(onnxModelPath);
+
+            // Handle model defaults for Ollama
+            if ("ollama".equalsIgnoreCase(aiProvider) && "gpt-3.5-turbo".equals(aiModel)) {
+                aiConfig.setModel("llama3");
+            }
 
             // Set Azure-specific config if using Azure provider
             if ("azure-openai".equalsIgnoreCase(aiProvider)) {
@@ -455,6 +466,31 @@ public class LogGuardLayout extends AbstractStringLayout {
 
         return new LogGuardLayout(charset, aiEnabled, extractMetrics, aiConfig,
                 aiThreshold, aiAsyncWaitMs, batchSize, samplingRate, safeKeyPatterns, metricsConfig);
+    }
+
+    public static LogGuardLayout createLayout(
+            Charset charset,
+            boolean aiEnabled,
+            String aiProvider,
+            String aiApiKey,
+            String aiModel,
+            String azureEndpoint,
+            String azureDeployment,
+            String azureApiVersion,
+            boolean extractMetrics,
+            String metricsFilePath,
+            long metricsFlushIntervalMs,
+            int metricsMaxCardinality,
+            String metricsPatterns,
+            int aiThreshold,
+            long aiTimeoutMs,
+            long aiAsyncWaitMs,
+            int batchSize,
+            double samplingRate,
+            String safeKeyPatternsStr) {
+        return createLayout(charset, aiEnabled, aiProvider, aiApiKey, aiModel, azureEndpoint, azureDeployment, azureApiVersion,
+                "http://localhost:11434", "", extractMetrics, metricsFilePath, metricsFlushIntervalMs, metricsMaxCardinality,
+                metricsPatterns, aiThreshold, aiTimeoutMs, aiAsyncWaitMs, batchSize, samplingRate, safeKeyPatternsStr);
     }
 
     public MetricsRegistry getMetricsRegistry() {

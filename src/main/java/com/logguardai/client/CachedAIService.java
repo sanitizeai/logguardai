@@ -230,4 +230,11 @@ public class CachedAIService implements AIService {
     public LRUCache.CacheStats getCacheStats() {
         return cache.getStats();
     }
+
+    /**
+     * Get the wrapped delegate AI service.
+     */
+    public AIService getDelegate() {
+        return delegate;
+    }
 }

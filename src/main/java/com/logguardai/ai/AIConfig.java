@@ -8,11 +8,13 @@ import java.util.List;
 public class AIConfig {
     
     private String apiKey;
-    private String apiProvider;          // "openai", "anthropic", "azure-openai"
+    private String apiProvider;          // "openai", "anthropic", "azure-openai", "ollama", "onnx"
     private String model;                 // "gpt-3.5-turbo", "gpt-4", "claude-3-sonnet-20240229", etc.
     private String azureEndpoint;         // Azure OpenAI endpoint URL
     private String azureDeployment;       // Azure OpenAI deployment name
     private String azureApiVersion;       // Azure OpenAI API version
+    private String ollamaEndpoint;        // Ollama local endpoint URL
+    private String onnxModelPath;         // Local ONNX model file path
     private int maxTokens;
     private double temperature;
     private long timeoutMs;
@@ -28,6 +30,8 @@ public class AIConfig {
         this.timeoutMs = 2000;            // 2 second timeout
         this.retryOnTimeout = false;
         this.maxRetries = 1;
+        this.ollamaEndpoint = "http://localhost:11434";
+        this.onnxModelPath = "";
     }
 
     public String getApiKey() {
@@ -126,7 +130,26 @@ public class AIConfig {
         this.safeKeyPatterns = safeKeyPatterns;
     }
 
+    public String getOllamaEndpoint() {
+        return ollamaEndpoint;
+    }
+
+    public void setOllamaEndpoint(String ollamaEndpoint) {
+        this.ollamaEndpoint = ollamaEndpoint;
+    }
+
+    public String getOnnxModelPath() {
+        return onnxModelPath;
+    }
+
+    public void setOnnxModelPath(String onnxModelPath) {
+        this.onnxModelPath = onnxModelPath;
+    }
+
     public boolean isConfigured() {
+        if ("ollama".equalsIgnoreCase(apiProvider) || "onnx".equalsIgnoreCase(apiProvider)) {
+            return true;
+        }
         return apiKey != null && !apiKey.isEmpty();
     }
 }
